@@ -168,4 +168,7 @@
     <data name="PauseOnExit" xml:space="preserve">
     <value>終了時にサービスを一時停止</value>
   </data>
+  <data name="Tooltip_CritDamage" xml:space="preserve">
+    <value>会心ダメージ: </value>
+  </data>
 </root>

@@ -56,8 +56,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     private readonly DispatcherTimer _fightTimer;
     private readonly DispatcherTimer _notificationTimer;
 
-    private readonly Action _onApiServiceConnected;
-    private readonly Action _onApiServiceDisconnected;
     private readonly PropertyChangedEventHandler _onLocalizationPropertyChanged;
     private readonly Dictionary<string, PlayerViewModel> _playerCache = new();
     private readonly string _stateFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "dps_state.json");
@@ -111,24 +109,18 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         SystemFonts = Fonts.SystemFontFamilies.OrderBy(f => f.Source);
         _selectedFontFamily = new FontFamily("Microsoft YaHei");
 
-        _onLocalizationPropertyChanged = (_, _) => OnPropertyChanged(nameof(Localization));
-        _onApiServiceConnected = () =>
+        _onLocalizationPropertyChanged = (_, e) =>
         {
-            ConnectionStatusText = Localization["Connected"] ?? "已连接";
-            ConnectionStatusColor = Brushes.LimeGreen;
+            OnPropertyChanged(string.IsNullOrEmpty(e.PropertyName) ? string.Empty : nameof(Localization));
         };
-        _onApiServiceDisconnected = () =>
-        {
-            ConnectionStatusText = Localization["Disconnected"] ?? "已断开";
-            ConnectionStatusColor = Brushes.Red;
-        };
+
 
         Localization.PropertyChanged += _onLocalizationPropertyChanged;
         BindingOperations.EnableCollectionSynchronization(Players, _dataLock); //启用线程安全的集合绑定 
 
         _apiService.DataReceived += OnDataReceived;
-        _apiService.OnConnected += _onApiServiceConnected;
-        _apiService.OnDisconnected += _onApiServiceDisconnected;
+        _apiService.OnConnected += OnApiServiceConnected;
+        _apiService.OnDisconnected += OnApiServiceDisconnected;
 
         _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _clockTimer.Tick += (_, _) => CurrentTime = DateTime.Now.ToLongTimeString();
@@ -152,6 +144,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     public IEnumerable<FontFamily> SystemFonts { get; }
 
     public LocalizationService Localization { get; }
+    public string AccurateCritDamageLabelText => Localization["AccurateCritDamageLabel"] ?? "精确暴伤加成 (加权):";
+
 
     //玩家总数
     public int PlayerCount => Players.Count;
@@ -159,8 +153,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     public async ValueTask DisposeAsync()
     {
         _apiService.DataReceived -= OnDataReceived;
-        _apiService.OnConnected -= _onApiServiceConnected;
-        _apiService.OnDisconnected -= _onApiServiceDisconnected;
+        _apiService.OnConnected -= OnApiServiceConnected;
+        _apiService.OnDisconnected -= OnApiServiceDisconnected;
+        Localization.PropertyChanged -= _onLocalizationPropertyChanged;
         Localization.PropertyChanged -= _onLocalizationPropertyChanged;
 
         _clockTimer.Stop();
@@ -172,6 +167,18 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         SaveState();
         await _apiService.DisposeAsync();
         GC.SuppressFinalize(this);
+    }
+
+    private void OnApiServiceConnected()
+    {
+        ConnectionStatusText = Localization["Connected"] ?? "已连接";
+        ConnectionStatusColor = Brushes.LimeGreen;
+    }
+
+    private void OnApiServiceDisconnected()
+    {
+        ConnectionStatusText = Localization["Disconnected"] ?? "已断开";
+        ConnectionStatusColor = Brushes.Red;
     }
 
     public void ShowNotification(string message)
@@ -370,6 +377,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         {
             >= 1_000_000_000 => $"{num / 1_000_000_000:F2}G",
             >= 1_000_000 => $"{num / 1_000_000:F2}M",
+            >= 10_000 => $"{num / 10_000:F1}W", // [新增] “万”单位格式
             >= 1_000 => $"{num / 1_000:F2}K",
             _ => num.ToString("F0")
         };
@@ -428,7 +436,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [RelayCommand]
     private async Task TogglePlayerExpansion(PlayerViewModel player)
     {
-        if (_expandedPlayer != null && _expandedPlayer != player) _expandedPlayer.IsExpanded = false;
+        if (_expandedPlayer != null && _expandedPlayer != player)
+        {
+            _expandedPlayer.IsExpanded = false;
+        }
+
         if (player.IsExpanded)
         {
             player.IsExpanded = false;
@@ -459,6 +471,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                     player.Skills.Clear();
                     foreach (var skillVm in skills) player.Skills.Add(skillVm);
                 });
+
+                //调用精确计算方法，并传入原始技能数据
+                player.CalculateAccurateCritDamage(skillDataResponse.Data.Skills);
             }
         }
         catch (Exception ex)
@@ -647,9 +662,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         var totalDamage = playersForCalcs.Sum(p => p.TotalDamage);
         var totalHealing = playersForCalcs.Sum(p => p.TotalHealing);
         var totalTakenDamage = playersForCalcs.Sum(p => p.TakenDamage);
-        var percentageThreshold = 100.0 / playersForCalcs.Count * 0.25;
         var showDamagePercent = SortColumn is "TotalDamage" or "TotalDps";
         var showHealingPercent = SortColumn is "TotalHealing" or "TotalHps";
+
         foreach (var player in Players)
         {
             if (IsSmartIdleModeEnabled && player.IsIdle)
@@ -663,7 +678,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             if (totalTakenDamage > 0)
             {
                 var takenPct = player.TakenDamage / totalTakenDamage * 100;
-                player.TakenDamageDisplayPercentage = takenPct > percentageThreshold ? $" {takenPct:F0}%" : null;
+                //只有当承伤占比 >= 1% 时才显示
+                player.TakenDamageDisplayPercentage = takenPct >= 1 ? $" {takenPct:F0}%" : null;
             }
             else
             {
@@ -673,7 +689,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             if (showDamagePercent && totalDamage > 0)
             {
                 var damagePct = player.TotalDamage / totalDamage * 100;
-                player.DamageDisplayPercentage = damagePct > percentageThreshold ? $" {damagePct:F0}%" : null;
+                //只有当伤害占比 >= 1% 时才显示
+                player.DamageDisplayPercentage = damagePct >= 1 ? $" {damagePct:F0}%" : null;
             }
             else
             {
@@ -683,7 +700,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             if (showHealingPercent && totalHealing > 0)
             {
                 var healingPct = player.TotalHealing / totalHealing * 100;
-                player.HealingDisplayPercentage = healingPct > percentageThreshold ? $" {healingPct:F0}%" : null;
+                //只有当治疗占比 >= 1% 时才显示
+                player.HealingDisplayPercentage = healingPct >= 1 ? $" {healingPct:F0}%" : null;
             }
             else
             {

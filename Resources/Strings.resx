@@ -168,4 +168,7 @@
     <data name="PauseOnExit" xml:space="preserve">
     <value>退出时暂停服务</value>
   </data>
+  <data name="AccurateCritDamageLabel" xml:space="preserve">
+    <value>暴伤加成 (分析值): </value>
+  </data>
 </root>

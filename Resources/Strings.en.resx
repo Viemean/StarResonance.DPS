@@ -169,4 +169,7 @@
     <data name="PauseOnExit" xml:space="preserve">
     <value>Pause service on exit</value>
   </data>
+  <data name="Tooltip_CritDamage" xml:space="preserve">
+    <value>Crit Damage: </value>
+  </data>
 </root>

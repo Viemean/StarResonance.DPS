@@ -5,11 +5,13 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:views="clr-namespace:StarResonance.DPS.Views"
              xmlns:viewModels="clr-namespace:StarResonance.DPS.ViewModels"
+             xmlns:converters="clr-namespace:StarResonance.DPS.Converters"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=viewModels:PlayerViewModel, IsDesignTimeCreatable=True}"
              d:DesignHeight="Auto" d:DesignWidth="600">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
         <Style x:Key="DataCell" TargetType="TextBlock">
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
@@ -48,7 +50,8 @@
                                 <Setter Property="HorizontalAlignment" Value="Center" />
                                 <Setter Property="VerticalAlignment" Value="Center" />
                                 <Setter Property="Cursor" Value="Hand" />
-                                <Setter Property="FontWeight" Value="Bold" /> </Style>
+                                <Setter Property="FontWeight" Value="Bold" />
+                            </Style>
                         </Button.Style>
                     </Button>
 
@@ -92,30 +95,40 @@
 
             <Border Background="#20FFFFFF" CornerRadius="5" Margin="30,5,5,5" Padding="10"
                     Visibility="{Binding IsExpanded, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <ItemsControl ItemsSource="{Binding Skills}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <UniformGrid Columns="3" Rows="2" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="{x:Type viewModels:SkillViewModel}">
-                            <StackPanel Orientation="Horizontal" Margin="5">
-                                <TextBlock Text="{Binding ElementType}" VerticalAlignment="Center" Margin="0,0,5,0"
-                                           FontWeight="Bold" Foreground="{Binding ElementColor}" />
-                                <TextBlock Text="{Binding DisplayName}" Foreground="White" VerticalAlignment="Center" />
-                                <TextBlock Text=":" Foreground="White" Margin="2,0" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding TotalValueText}" FontWeight="Bold"
-                                           Foreground="{Binding TypeColor}" VerticalAlignment="Center" />
-                                <TextBlock Text="(" Foreground="Gray" Margin="5,0,0,0" VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding PercentageText}" Foreground="White"
-                                           VerticalAlignment="Center"
-                                           FontStyle="Normal" />
-                                <TextBlock Text=")" Foreground="Gray" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <StackPanel>
+                    <ItemsControl ItemsSource="{Binding Skills}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="3" Rows="2" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type viewModels:SkillViewModel}">
+                                <StackPanel Orientation="Horizontal" Margin="5">
+                                    <TextBlock Text="{Binding ElementType}" VerticalAlignment="Center" Margin="0,0,5,0"
+                                               FontWeight="Bold" Foreground="{Binding ElementColor}" />
+                                    <TextBlock Text="{Binding DisplayName}" Foreground="White"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Text=":" Foreground="White" Margin="2,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding TotalValueText}" FontWeight="Bold"
+                                               Foreground="{Binding TypeColor}" VerticalAlignment="Center" />
+                                    <TextBlock Text="(" Foreground="Gray" Margin="5,0,0,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding PercentageText}" Foreground="White"
+                                               VerticalAlignment="Center"
+                                               FontStyle="Normal" />
+                                    <TextBlock Text=")" Foreground="Gray" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Foreground="Orange" FontWeight="Bold" Margin="5,5,0,0"
+                               Visibility="{Binding AccurateCritDamageText, Converter={StaticResource StringToVisibilityConverter}}">
+                        <Run
+                            Text="{Binding DataContext.AccurateCritDamageLabelText, ElementName=RootWindow, Mode=OneWay}" />
+                        <Run Text="{Binding AccurateCritDamageText}" />
+                    </TextBlock>
+                </StackPanel>
             </Border>
         </StackPanel>
     </Border>

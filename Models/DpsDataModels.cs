@@ -5,6 +5,10 @@ namespace StarResonance.DPS.Models;
 public record TotalCount
 {
     [JsonInclude]
+    [JsonPropertyName("normal")]
+    public required int Normal { get; init; }
+    
+    [JsonInclude]
     [JsonPropertyName("critical")]
     public required int Critical { get; init; }
 
@@ -19,6 +23,22 @@ public record TotalCount
 
 public record TotalStats
 {
+    [JsonInclude]
+    [JsonPropertyName("normal")]
+    public required double Normal { get; init; }
+
+    [JsonInclude]
+    [JsonPropertyName("critical")]
+    public required double Critical { get; init; }
+
+    [JsonInclude]
+    [JsonPropertyName("lucky")]
+    public required double Lucky { get; init; }
+
+    [JsonInclude]
+    [JsonPropertyName("crit_lucky")]
+    public required double CritLucky { get; init; }
+
     [JsonInclude]
     [JsonPropertyName("total")]
     public required double Total { get; init; }
@@ -36,7 +56,7 @@ public record UserData
 
     [JsonInclude]
     [JsonPropertyName("total_damage")]
-    public TotalStats TotalDamage { get; init; } = new() { Total = 0 };
+    public TotalStats TotalDamage { get; init; } = new() { Normal = 0, Critical = 0, Lucky = 0, CritLucky = 0, Total = 0 };
 
     [JsonInclude]
     [JsonPropertyName("total_dps")]
@@ -44,7 +64,7 @@ public record UserData
 
     [JsonInclude]
     [JsonPropertyName("total_healing")]
-    public TotalStats TotalHealing { get; init; } = new() { Total = 0 };
+    public TotalStats TotalHealing { get; init; } = new() { Normal = 0, Critical = 0, Lucky = 0, CritLucky = 0, Total = 0 };
 
     [JsonInclude]
     [JsonPropertyName("total_hps")]
@@ -60,7 +80,7 @@ public record UserData
 
     [JsonInclude]
     [JsonPropertyName("total_count")]
-    public TotalCount TotalCount { get; init; } = new() { Critical = 0, Lucky = 0, Total = 0 };
+    public TotalCount TotalCount { get; init; } = new() { Normal = 0, Critical = 0, Lucky = 0, Total = 0 };
 }
 
 public record ApiResponse
