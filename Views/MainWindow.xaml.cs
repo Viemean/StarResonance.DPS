@@ -39,14 +39,14 @@ public partial class MainWindow
     {
         var hwnd = new WindowInteropHelper(this).Handle;
         var extendedStyle = GetWindowLong(hwnd, GwlExstyle);
-        SetWindowLong(hwnd, GwlExstyle, extendedStyle | WsExTransparent);
+        _ = SetWindowLong(hwnd, GwlExstyle, extendedStyle | WsExTransparent);
     }
 
     private void ClearWindowClickThrough()
     {
         var hwnd = new WindowInteropHelper(this).Handle;
         var extendedStyle = GetWindowLong(hwnd, GwlExstyle);
-        SetWindowLong(hwnd, GwlExstyle, extendedStyle & ~WsExTransparent);
+        _ = SetWindowLong(hwnd, GwlExstyle, extendedStyle & ~WsExTransparent);
     }
 
     private async void Player_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -133,8 +133,6 @@ public partial class MainWindow
         }
     }
 
-// File: Views/MainWindow.xaml.cs
-
     private async void OnMainWindowClosing(object? sender, CancelEventArgs e)
     {
         try
@@ -180,12 +178,26 @@ public partial class MainWindow
 
     private async void PauseButton_Click(object sender, RoutedEventArgs e)
     {
-        await _viewModel!.TogglePauseAsync();
+        try
+        {
+            await _viewModel!.TogglePauseAsync();
+        }
+        catch (Exception error)
+        {
+            Debug.WriteLine($"Error on PauseButton_Click: {error.Message}");
+        }
     }
 
     private async void ResetButton_Click(object sender, RoutedEventArgs e)
     {
-        await _viewModel!.ResetDataAsync();
+        try
+        {
+            await _viewModel!.ResetDataAsync();
+        }
+        catch (Exception error)
+        {
+            Debug.WriteLine($"Error on ResetButton_Click: {error.Message}");
+        }
     }
 
 
@@ -197,12 +209,19 @@ public partial class MainWindow
 
     private async void AbortCountdownButton_Click(object sender, RoutedEventArgs e)
     {
-        await _viewModel!.AbortCountdownAsync();
+        try
+        {
+            await _viewModel!.AbortCountdownAsync();
+        }
+        catch (Exception error)
+        {
+            Debug.WriteLine($"Error on abort countdown: {error.Message}");
+        }
     }
 
-    [DllImport("user32.dll")]
-    private static extern int GetWindowLong(IntPtr hwnd, int index);
+    [LibraryImport("user32.dll")]
+    private static partial int GetWindowLong(IntPtr hwnd, int index);
 
-    [DllImport("user32.dll")]
-    private static extern int SetWindowLong(IntPtr hwnd, int index, int newStyle);
+    [LibraryImport("user32.dll")]
+    private static partial int SetWindowLong(IntPtr hwnd, int index, int newStyle);
 }

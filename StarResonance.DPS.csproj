@@ -13,6 +13,7 @@
         <Version>1.0.7</Version>
         <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
 
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <DebugType>None</DebugType>
         <DebugSymbols>false</DebugSymbols>
     </PropertyGroup>
