@@ -38,7 +38,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     //闲置时长
     private const int IdleTimeoutSeconds = 30;
 
-    private static readonly Dictionary<string, Func<PlayerViewModel, object>> Sorters = new()
+    private static readonly Dictionary<string, Func<PlayerViewModel, IComparable>> Sorters = new()
     {
         { SortableColumns.Name, p => p.DisplayName },
         { SortableColumns.FightPoint, p => p.FightPoint },

@@ -14,12 +14,12 @@ public partial class App
 
     public new static App Current => (App)Application.Current;
 
-    private IServiceProvider Services { get; } = ConfigureServices();
+    private ServiceProvider Services { get; } = ConfigureServices();
 
     /// <summary>
     ///     配置应用程序的服务。
     /// </summary>
-    private static IServiceProvider ConfigureServices()
+    private static ServiceProvider ConfigureServices()
     {
         var services = new ServiceCollection();
 
