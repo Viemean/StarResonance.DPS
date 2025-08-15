@@ -124,9 +124,8 @@
 
                     <TextBlock Foreground="Orange" FontWeight="Bold" Margin="5,5,0,0"
                                Visibility="{Binding AccurateCritDamageText, Converter={StaticResource StringToVisibilityConverter}}">
-                        <Run
-                            Text="{Binding DataContext.AccurateCritDamageLabelText, ElementName=RootWindow, Mode=OneWay}" />
-                        <Run Text="{Binding AccurateCritDamageText}" />
+                        <Run Text="{Binding DataContext.Localization[AccurateCritDamageLabel], ElementName=RootWindow, Mode=OneWay}"/>
+                        <Run Text="{Binding AccurateCritDamageText}"/>
                     </TextBlock>
                 </StackPanel>
             </Border>

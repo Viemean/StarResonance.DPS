@@ -487,7 +487,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                     foreach (var skillVm in skills) player.Skills.Add(skillVm);
                 });
 
-                //调用精确计算方法，并传入原始技能数据
+                //调用重命名后的精确计算方法
                 player.CalculateAccurateCritDamage(skillDataResponse.Data.Skills);
             }
         }

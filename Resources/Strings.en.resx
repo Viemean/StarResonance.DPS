@@ -172,4 +172,7 @@
   <data name="AccurateCritDamageLabel" xml:space="preserve">
     <value>Crit Dmg Bonus (Analyzed Val):</value>
   </data>
+  <data name="NotApplicable" xml:space="preserve">
+    <value>N/A</value>
+  </data>
 </root>

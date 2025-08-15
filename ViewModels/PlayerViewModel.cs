@@ -37,6 +37,7 @@ public partial class PlayerViewModel(
     [ObservableProperty] private double _totalDps;
     [ObservableProperty] private double _totalHealing;
     [ObservableProperty] private double _totalHps;
+
     [ObservableProperty] private string? _accurateCritDamageText;
     public string DisplayName => Name;
 
@@ -46,12 +47,10 @@ public partial class PlayerViewModel(
         set
         {
             if (!SetProperty(ref _isExpanded, value)) return;
-            // 当 IsExpanded 被设置为折叠时清空技能和暴伤数据
-            if (!value)
-            {
-                if (Skills.Count > 0) Skills.Clear();
-                AccurateCritDamageText = null;
-            }
+            // 当 IsExpanded 被设置为折叠时清空技能和分析数据
+            if (value) return;
+            if (Skills.Count > 0) Skills.Clear();
+            AccurateCritDamageText = null;
         }
     }
 
@@ -90,62 +89,40 @@ public partial class PlayerViewModel(
             return sb.ToString().TrimEnd();
         }
     }
-    
+
     public void CalculateAccurateCritDamage(IReadOnlyDictionary<string, SkillData> skillsData)
     {
         if (skillsData.Count == 0)
         {
-            AccurateCritDamageText = "N/A";
+            AccurateCritDamageText = localizationService["NotApplicable"] ?? "数据不足";
             return;
         }
 
-        var multipliers = new List<(double multiplier, int weight)>();
+        var critMultipliers = new List<(double multiplier, int weight)>();
         const int minSamples = 3;
 
         foreach (var skill in skillsData.Values)
         {
             if (skill.Type != "伤害" || skill.CountBreakdown.Normal < minSamples ||
-                skill.CountBreakdown.Critical < minSamples)
-            {
-                continue;
-            }
-
+                skill.CountBreakdown.Critical < minSamples) continue;
             var avgNormal = skill.DamageBreakdown.Normal / skill.CountBreakdown.Normal;
+            if (!(avgNormal > 0)) continue;
             var totalCrit = skill.DamageBreakdown.Critical + skill.DamageBreakdown.CritLucky;
             var avgCrit = totalCrit / skill.CountBreakdown.Critical;
-
-            if (avgNormal > 0)
-            {
-                var multiplier = avgCrit / avgNormal;
-                multipliers.Add((multiplier, skill.TotalCount));
-            }
+            critMultipliers.Add((avgCrit / avgNormal, skill.TotalCount));
         }
 
-        if (multipliers.Count == 0)
+        if (critMultipliers.Count > 0)
         {
-            AccurateCritDamageText = "数据不足";
-            return;
-        }
-
-        double totalWeightedMultiplier = 0;
-        int totalWeight = 0;
-
-        foreach (var (multiplier, weight) in multipliers)
-        {
-            totalWeightedMultiplier += multiplier * weight;
-            totalWeight += weight;
-        }
-
-        if (totalWeight > 0)
-        {
+            var totalWeightedMultiplier = critMultipliers.Sum(t => t.multiplier * t.weight);
+            var totalWeight = critMultipliers.Sum(t => t.weight);
             var weightedAvgMultiplier = totalWeightedMultiplier / totalWeight;
-            var accurateBonus = weightedAvgMultiplier - 1;
-
-            AccurateCritDamageText = $"{accurateBonus:P1}";
+            var bonus = weightedAvgMultiplier - 1;
+            AccurateCritDamageText = $"{bonus:P1}";
         }
         else
         {
-            AccurateCritDamageText = "N/A";
+            AccurateCritDamageText = localizationService["NotApplicable"] ?? "数据不足";
         }
     }
 
@@ -195,9 +172,6 @@ public partial class PlayerViewModel(
         }
     }
 
-    /// <summary>
-    ///     当用户点击排名时，执行复制操作的命令。
-    /// </summary>
     [RelayCommand]
     private void CopyData()
     {
@@ -226,7 +200,7 @@ public partial class PlayerViewModel(
         TotalDps = data.TotalDps;
         TotalHps = data.TotalHps;
         TakenDamage = data.TakenDamage;
-        
+
         OnComputedPropertiesChanged();
     }
 
