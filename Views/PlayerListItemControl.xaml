@@ -1,0 +1,137 @@
+﻿<UserControl x:Class="StarResonance.DPS.Views.PlayerListItemControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:views="clr-namespace:StarResonance.DPS.Views"
+             xmlns:viewModels="clr-namespace:StarResonance.DPS.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=viewModels:PlayerViewModel, IsDesignTimeCreatable=True}"
+             d:DesignHeight="Auto" d:DesignWidth="600">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <Style x:Key="DataCell" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </UserControl.Resources>
+
+    <Border>
+        <Border.Style>
+            <Style TargetType="Border">
+                <Setter Property="BorderThickness" Value="0,0,0,1" />
+                <Setter Property="BorderBrush" Value="#444" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsIdle}" Value="True">
+                        <Setter Property="Opacity" Value="0.6" />
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding ShowSeparatorAfter}" Value="True">
+                        <Setter Property="BorderBrush" Value="Green" />
+                        <Setter Property="BorderThickness" Value="0,0,0,2" />
+                        <Setter Property="Margin" Value="0,0,0,5" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
+
+        <StackPanel>
+            <Border Padding="0,5" ToolTipService.InitialShowDelay="500">
+                <views:DynamicGrid ColumnDefinitionsSource="{StaticResource SharedGridColumnDefinitions}">
+                    <Button Grid.Column="0"
+                            Content="{Binding Rank}"
+                            Command="{Binding CopyDataCommand}"
+                            ToolTip="{Binding DataContext.Localization[ClickToCopy], ElementName=RootWindow}">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="BorderThickness" Value="0" />
+                                <Setter Property="Foreground" Value="White" />
+                                <Setter Property="HorizontalAlignment" Value="Center" />
+                                <Setter Property="VerticalAlignment" Value="Center" />
+                                <Setter Property="Cursor" Value="Hand" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}">
+                                                <ContentPresenter HorizontalAlignment="Center"
+                                                                  VerticalAlignment="Center" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Foreground" Value="Gold" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Button.Style>
+                    </Button>
+
+                    <TextBlock Grid.Column="1" Text="{Binding DisplayName}" Style="{StaticResource DataCell}"
+                               Foreground="{Binding NameColor}" Margin="5,0,0,0" TextTrimming="CharacterEllipsis"
+                               ToolTip="{Binding ToolTipText}" />
+                    <TextBlock Grid.Column="2" Text="{Binding FightPoint}" Style="{StaticResource DataCell}"
+                               Foreground="Gold" ToolTip="{Binding ToolTipText}" />
+                    <TextBlock Grid.Column="3" Text="{Binding DisplayProfession}" Style="{StaticResource DataCell}"
+                               Foreground="White" TextTrimming="CharacterEllipsis" ToolTip="{Binding ToolTipText}" />
+
+                    <StackPanel Grid.Column="4" Orientation="Horizontal">
+                        <TextBlock Text="{Binding TotalDamageText}" Style="{StaticResource DataCell}"
+                                   Foreground="OrangeRed" ToolTip="{Binding TotalDamageTooltip}" />
+                        <TextBlock Text="{Binding DamageDisplayPercentage}" Style="{StaticResource DataCell}"
+                                   Foreground="LightGoldenrodYellow" ToolTip="{Binding TotalDamageTooltip}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="5" Orientation="Horizontal">
+                        <TextBlock Text="{Binding TotalHealingText}" Style="{StaticResource DataCell}"
+                                   Foreground="Cyan" ToolTip="{Binding TotalHealingTooltip}" />
+                        <TextBlock Text="{Binding HealingDisplayPercentage}" Style="{StaticResource DataCell}"
+                                   Foreground="LightGoldenrodYellow" ToolTip="{Binding TotalHealingTooltip}" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="6" Text="{Binding TotalDpsText}" Style="{StaticResource DataCell}"
+                               Foreground="Yellow" ToolTip="{Binding TotalDpsTooltip}" />
+                    <TextBlock Grid.Column="7" Text="{Binding TotalHpsText}" Style="{StaticResource DataCell}"
+                               Foreground="LimeGreen" ToolTip="{Binding TotalHpsTooltip}" />
+
+                    <StackPanel Grid.Column="8" Orientation="Horizontal" HorizontalAlignment="Left">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding TakenDamageText}" Style="{StaticResource DataCell}"
+                                       Foreground="DodgerBlue" ToolTip="{Binding TakenDamageTooltip}" />
+                            <TextBlock Text="{Binding TakenDamageDisplayPercentage}" Style="{StaticResource DataCell}"
+                                       Foreground="LightGoldenrodYellow" ToolTip="{Binding TakenDamageTooltip}" />
+                        </StackPanel>
+                    </StackPanel>
+                </views:DynamicGrid>
+            </Border>
+
+            <Border Background="#20FFFFFF" CornerRadius="5" Margin="30,5,5,5" Padding="10"
+                    Visibility="{Binding IsExpanded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <ItemsControl ItemsSource="{Binding Skills}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Columns="3" Rows="2" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type viewModels:SkillViewModel}">
+                            <StackPanel Orientation="Horizontal" Margin="5">
+                                <TextBlock Text="{Binding ElementType}" VerticalAlignment="Center" Margin="0,0,5,0"
+                                           FontWeight="Bold" Foreground="{Binding ElementColor}" />
+                                <TextBlock Text="{Binding DisplayName}" Foreground="White" VerticalAlignment="Center" />
+                                <TextBlock Text=":" Foreground="White" Margin="2,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding TotalValueText}" FontWeight="Bold"
+                                           Foreground="{Binding TypeColor}" VerticalAlignment="Center" />
+                                <TextBlock Text="(" Foreground="Gray" Margin="5,0,0,0" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding PercentageText}" Foreground="White"
+                                           VerticalAlignment="Center"
+                                           FontStyle="Normal" />
+                                <TextBlock Text=")" Foreground="Gray" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+        </StackPanel>
+    </Border>
+</UserControl>

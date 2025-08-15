@@ -1,0 +1,168 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+    <data name="AbortCountdown" xml:space="preserve">
+    <value>中断倒计时</value>
+  </data>
+    <data name="BackendAddress" xml:space="preserve">
+    <value>后端服务地址</value>
+  </data>
+    <data name="Cancel" xml:space="preserve">
+    <value>取消</value>
+  </data>
+    <data name="CharacterName" xml:space="preserve">
+    <value>昵称</value>
+  </data>
+    <data name="Connect" xml:space="preserve">
+    <value>连接</value>
+  </data>
+    <data name="Connected" xml:space="preserve">
+    <value>已连接</value>
+  </data>
+    <data name="Connecting" xml:space="preserve">
+    <value>正在连接...</value>
+  </data>
+    <data name="Copy" xml:space="preserve">
+    <value>复制</value>
+  </data>
+    <data name="Copy_Damage" xml:space="preserve">
+    <value>伤害</value>
+  </data>
+    <data name="Copy_Healing" xml:space="preserve">
+    <value>治疗</value>
+  </data>
+    <data name="Countdown" xml:space="preserve">
+    <value>倒计时</value>
+  </data>
+    <data name="Custom" xml:space="preserve">
+    <value>自定义...</value>
+  </data>
+    <data name="Disconnected" xml:space="preserve">
+    <value>已断开</value>
+  </data>
+    <data name="EnterCountdownMinutes" xml:space="preserve">
+    <value>自定义时间:</value>
+  </data>
+    <data name="Exit" xml:space="preserve">
+    <value>退出</value>
+  </data>
+    <data name="ExportCsv" xml:space="preserve">
+    <value>导出为CSV文件</value>
+  </data>
+    <data name="FiveMinutes" xml:space="preserve">
+    <value>5 分钟</value>
+  </data>
+    <data name="FontSize" xml:space="preserve">
+    <value>字体大小</value>
+  </data>
+    <data name="Language" xml:space="preserve">
+    <value>语言</value>
+  </data>
+    <data name="Lock" xml:space="preserve">
+    <value>锁定</value>
+  </data>
+    <data name="LockUnlockWindow" xml:space="preserve">
+    <value>锁定/解锁</value>
+  </data>
+    <data name="Minimize" xml:space="preserve">
+    <value>最小化</value>
+  </data>
+    <data name="OneMinute" xml:space="preserve">
+    <value>1 分钟</value>
+  </data>
+    <data name="Pause" xml:space="preserve">
+    <value>暂停</value>
+  </data>
+    <data name="Profession" xml:space="preserve">
+    <value>职业</value>
+  </data>
+    <data name="Rank" xml:space="preserve">
+    <value>#</value>
+  </data>
+    <data name="Reset" xml:space="preserve">
+    <value>重置</value>
+  </data>
+    <data name="RestoreWindow" xml:space="preserve">
+    <value>恢复窗口</value>
+  </data>
+    <data name="Resume" xml:space="preserve">
+    <value>恢复</value>
+  </data>
+    <data name="Score" xml:space="preserve">
+    <value>评分</value>
+  </data>
+    <data name="Settings" xml:space="preserve">
+    <value>设置</value>
+  </data>
+    <data name="Start" xml:space="preserve">
+    <value>开始</value>
+  </data>
+    <data name="TakenDamage" xml:space="preserve">
+    <value>承伤</value>
+  </data>
+    <data name="Tooltip_CritRate" xml:space="preserve">
+    <value>暴击率: </value>
+  </data>
+    <data name="Tooltip_LuckyRate" xml:space="preserve">
+    <value>幸运率: </value>
+  </data>
+    <data name="Tooltip_NotInRange" xml:space="preserve">
+    <value>玩家可能不在附近战斗范围，\n建议重置一遍统计数据。</value>
+  </data>
+    <data name="Tooltip_PlayerId" xml:space="preserve">
+    <value>角色ID: </value>
+  </data>
+    <data name="Tooltip_PlayerName" xml:space="preserve">
+    <value>角色昵称: </value>
+  </data>
+    <data name="Tooltip_Profession" xml:space="preserve">
+    <value>职业: </value>
+  </data>
+    <data name="Tooltip_Score" xml:space="preserve">
+    <value>评分: </value>
+  </data>
+    <data name="TotalDamage" xml:space="preserve">
+    <value>总伤害</value>
+  </data>
+    <data name="TotalDPS" xml:space="preserve">
+    <value>总DPS</value>
+  </data>
+    <data name="TotalHealing" xml:space="preserve">
+    <value>总治疗</value>
+  </data>
+    <data name="TotalHPS" xml:space="preserve">
+    <value>总HPS</value>
+  </data>
+    <data name="UIRefreshInterval" xml:space="preserve">
+    <value>UI刷新间隔(ms)</value>
+  </data>
+    <data name="Unlock" xml:space="preserve">
+    <value>解锁</value>
+  </data>
+    <data name="WindowOpacity" xml:space="preserve">
+    <value>窗口透明度</value>
+  </data>
+    <data name="FightDuration" xml:space="preserve">
+    <value>计时</value>
+</data>
+    <data name="ClickToCopy" xml:space="preserve">
+    <value>点击复制</value>
+  </data>
+    <data name="CopySuccess" xml:space="preserve">
+    <value>复制成功!</value>
+  </data>
+    <data name="CopyFailed" xml:space="preserve">
+    <value>复制失败: 无法访问剪贴板</value>
+  </data>
+    <data name="SmartIdleMode" xml:space="preserve">
+    <value>启用闲置模式</value>
+  </data>
+    <data name="FontFamily" xml:space="preserve">
+    <value>字体样式</value>
+  </data>
+    <data name="Apply" xml:space="preserve">
+    <value>应用</value>
+  </data>
+    <data name="SmartIdleMode_Tooltip" xml:space="preserve">
+    <value>启用后，长时间无数据变化的玩家将被视为“闲置”并沉底显示，且不计入百分比统计。</value>
+  </data>
+</root>
