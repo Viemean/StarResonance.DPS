@@ -84,6 +84,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [ObservableProperty] private bool _isPauseOnExitEnabled = true;
     [ObservableProperty] private bool _isSettingsVisible;
     [ObservableProperty] private bool _isSmartIdleModeEnabled;
+    private DateTime _lastCombatActivityTime;
     private ApiResponse? _latestReceivedData;
     [ObservableProperty] private string _lockIconContent = "🔓";
     [ObservableProperty] private string _lockMenuHeaderText = "锁定";
@@ -299,9 +300,17 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     private void FightTimer_Tick(object? sender, EventArgs e)
     {
-        _elapsedSeconds++;
-        var timeSpan = TimeSpan.FromSeconds(_elapsedSeconds);
-        FightDurationText = timeSpan.TotalHours >= 1 ? timeSpan.ToString(@"h\:mm\:ss") : timeSpan.ToString(@"m\:ss");
+        // 检查距离上次实际战斗数据变化是否在2秒窗口内
+        if ((DateTime.UtcNow - _lastCombatActivityTime).TotalSeconds <= 2)
+        {
+            // 只有在活跃期内，才累加秒数并更新UI
+            _elapsedSeconds++;
+            var timeSpan = TimeSpan.FromSeconds(_elapsedSeconds);
+            FightDurationText = timeSpan.TotalHours >= 1
+                ? timeSpan.ToString(@"h\:mm\:ss")
+                : timeSpan.ToString(@"m\:ss");
+        }
+        // 如果超过2秒不活跃，则不执行任何操作，计时器会平滑地“冻结”。
     }
 
     partial void OnIsLockedChanged(bool value)
@@ -475,9 +484,49 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         ApiResponse? dataToProcess;
         lock (_dataLock)
         {
-            if (_latestReceivedData == null) return;
             dataToProcess = _latestReceivedData;
             _latestReceivedData = null;
+        }
+
+        if (dataToProcess == null) return;
+
+        // 此方法现在只负责一件事：检查是否有变化，并更新时间戳
+        var hasChanged = false;
+        if (dataToProcess.User is { Count: > 0 })
+        {
+            if (dataToProcess.User.Count != _playerCache.Count) hasChanged = true;
+            else
+            {
+                foreach (var (key, newUserData) in dataToProcess.User)
+                {
+                    if (_playerCache.TryGetValue(key, out var playerVm))
+                    {
+                        if (!(Math.Abs(playerVm.TotalDamage - newUserData.TotalDamage.Total) > 1E-6) &&
+                            !(Math.Abs(playerVm.TotalHealing - newUserData.TotalHealing.Total) > 1E-6) &&
+                            !(Math.Abs(playerVm.TakenDamage - newUserData.TakenDamage) > 1E-6)) continue;
+                        hasChanged = true;
+                        break;
+                    }
+                    else
+                    {
+                        if (!(newUserData.TotalDamage.Total > 0) && !(newUserData.TotalHealing.Total > 0) &&
+                            !(newUserData.TakenDamage > 0)) continue;
+                        hasChanged = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (hasChanged)
+        {
+            _lastCombatActivityTime = DateTime.UtcNow;
+            // 战斗首次启动
+            if (!_isFightActive && !IsPaused)
+            {
+                _isFightActive = true;
+                if (!_fightTimer.IsEnabled) _fightTimer.Start();
+            }
         }
 
         _ = ProcessData(dataToProcess);
@@ -503,51 +552,51 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     /// <summary>
     ///     处理从API服务接收到的实时数据。
-    ///     此方法会更新或添加玩家视图模型，并触发UI列表的刷新。
+    ///     此方法仅负责更新UI相关的视图模型，不包含任何计时器逻辑。
     /// </summary>
     /// <param name="data">从服务器接收到的最新API响应数据。</param>
     private async Task ProcessData(ApiResponse data)
     {
         try
         {
-            if (!_isFightActive && !IsPaused)
-                if (data.User.Values.Any(u => u.TotalDamage.Total > 0 || u.TotalHealing.Total > 0))
-                {
-                    _isFightActive = true;
-                    _fightTimer.Start();
-                }
+            if (data.User == null) return;
 
             var activeKeys = new HashSet<string>(data.User.Keys);
 
-            // Dispatcher 调用改为 await, 以支持异步操作
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
+                //移除已离开的玩家
                 foreach (var existingKey in _playerCache.Keys.Except(activeKeys).ToList())
-                    if (_playerCache.TryGetValue(existingKey, out var playerToRemove))
-                    {
-                        Players.Remove(playerToRemove);
-                        _playerCache.Remove(existingKey);
-                    }
+                {
+                    if (!_playerCache.TryGetValue(existingKey, out var playerToRemove)) continue;
+                    Players.Remove(playerToRemove);
+                    _playerCache.Remove(existingKey);
+                }
 
+                //  添加或更新玩家数据
                 foreach (var (key, userData) in data.User)
                 {
                     long.TryParse(key, out var uid);
                     if (!_playerCache.TryGetValue(key, out var playerVm))
                     {
-                        // 传入this作为INotificationService的实例
+                        // 如果是新玩家，则创建并添加到缓存和UI集合中
                         playerVm = new PlayerViewModel(uid, Localization, this);
                         _playerCache.Add(key, playerVm);
                         Players.Add(playerVm);
                     }
 
-                    // 修正: 先比较旧数据和新数据，再更新
+                    // 只要伤害或治疗有变化，就刷新该玩家的活跃时间
                     if (Math.Abs(playerVm.TotalDamage - userData.TotalDamage.Total) > 1E-6 ||
                         Math.Abs(playerVm.TotalHealing - userData.TotalHealing.Total) > 1E-6)
+                    {
                         playerVm.LastActiveTime = DateTime.UtcNow;
+                    }
 
+                    // 调用玩家视图模型的Update方法，将新数据应用到UI
                     playerVm.Update(userData, playerVm.Rank, FightDurationText);
                 }
 
+                // 更新列表排序和列总计等最终UI状态
                 UpdatePlayerList();
             });
         }
@@ -685,6 +734,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         _elapsedSeconds = 0;
         FightDurationText = "0:00";
         _isFightActive = false;
+        _lastCombatActivityTime = DateTime.MinValue;
         var success = await _apiService.ResetDataAsync();
         if (success)
             Application.Current.Dispatcher.Invoke(() =>
