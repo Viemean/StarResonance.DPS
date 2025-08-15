@@ -9,10 +9,8 @@ using StarResonance.DPS.Services;
 
 namespace StarResonance.DPS.ViewModels;
 
-public partial class PlayerViewModel(
-    long uid,
-    LocalizationService localizationService,
-    INotificationService notificationService) : ObservableObject
+// 修正：构造函数接收 INotificationService
+public partial class PlayerViewModel(long uid, LocalizationService localizationService, INotificationService notificationService) : ObservableObject
 {
     [ObservableProperty] private string? _damageDisplayPercentage;
     private UserData? _data;
@@ -40,26 +38,41 @@ public partial class PlayerViewModel(
     public string DisplayName => Name;
 
     public DateTime LastActiveTime { get; set; } = DateTime.UtcNow;
-
-    // --- 【新增属性】 ---
-    // 用于记录上次学习该玩家技能的时间, 初始化为最小值以确保首次会立即学习
+    
     public DateTime LastLearnedTime { get; set; } = DateTime.MinValue;
 
     public ObservableCollection<SkillViewModel> Skills { get; } = new();
 
     public long Uid { get; } = uid;
 
-    public string TotalDamageText => MainViewModel.FormatNumber(TotalDamage);
-    public string TotalHealingText => MainViewModel.FormatNumber(TotalHealing);
-    public string TotalDpsText => MainViewModel.FormatNumber(TotalDps);
-    public string TotalHpsText => MainViewModel.FormatNumber(TotalHps);
-    public string TakenDamageText => MainViewModel.FormatNumber(TakenDamage);
+    public string TotalDamageText => TotalDamage > 0 ? MainViewModel.FormatNumber(TotalDamage) : string.Empty;
+    public string TotalHealingText => TotalHealing > 0 ? MainViewModel.FormatNumber(TotalHealing) : string.Empty;
+    public string TotalDpsText => TotalDps > 0 ? MainViewModel.FormatNumber(TotalDps) : string.Empty;
+    public string TotalHpsText => TotalHps > 0 ? MainViewModel.FormatNumber(TotalHps) : string.Empty;
+    public string TakenDamageText => TakenDamage > 0 ? MainViewModel.FormatNumber(TakenDamage) : string.Empty;
 
     public string TotalDamageTooltip => TotalDamage.ToString("N0");
     public string TotalHealingTooltip => TotalHealing.ToString("N0");
     public string TotalDpsTooltip => TotalDps.ToString("N2");
     public string TotalHpsTooltip => TotalHps.ToString("N2");
     public string TakenDamageTooltip => TakenDamage.ToString("N0");
+    
+    /// <summary>
+    /// 当用户点击排名时，执行复制操作的命令。
+    /// </summary>
+    [RelayCommand]
+    private void CopyData()
+    {
+        try
+        {
+            Clipboard.SetText(CopyableString);
+            notificationService.ShowNotification(localizationService["CopySuccess"] ?? "复制成功!");
+        }
+        catch
+        {
+            notificationService.ShowNotification(localizationService["CopyFailed"] ?? "复制失败: 无法访问剪贴板");
+        }
+    }
 
     public string ToolTipText
     {
@@ -142,21 +155,6 @@ public partial class PlayerViewModel(
         TakenDamage = data.TakenDamage;
 
         OnComputedPropertiesChanged();
-    }
-
-    // 增加一个方法来处理复制逻辑
-    [RelayCommand]
-    private void CopyData()
-    {
-        try
-        {
-            Clipboard.SetText(CopyableString);
-            notificationService.ShowNotification(localizationService["CopySuccess"] ?? "复制成功!");
-        }
-        catch
-        {
-            notificationService.ShowNotification(localizationService["CopyFailed"] ?? "复制失败: 无法访问剪贴板");
-        }
     }
 
     private void OnComputedPropertiesChanged()
