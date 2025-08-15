@@ -151,6 +151,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     public IEnumerable<FontFamily> SystemFonts { get; }
     public LocalizationService Localization { get; }
+    //玩家总数
+    public int PlayerCount => Players.Count;
 
     public async ValueTask DisposeAsync()
     {
@@ -598,6 +600,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
                 // 更新列表排序和列总计等最终UI状态
                 UpdatePlayerList();
+                //更新玩家总数
+                OnPropertyChanged(nameof(PlayerCount));
             });
         }
         catch (Exception e)

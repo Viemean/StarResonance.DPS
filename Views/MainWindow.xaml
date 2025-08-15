@@ -199,7 +199,7 @@
 
                     <views:DynamicGrid Grid.Row="0" Margin="5,5,5,0"
                                        ColumnDefinitionsSource="{StaticResource SharedGridColumnDefinitions}">
-                        <TextBlock Grid.Column="0" Text=""
+                        <TextBlock Grid.Column="0" Text="{Binding PlayerCount}"
                                    Style="{StaticResource HeaderLabel}" Foreground="White" HorizontalAlignment="Center" />
                         <Button Grid.Column="1" Content="{Binding Localization[CharacterName]}"
                                 CommandParameter="{x:Static viewModels:MainViewModel+SortableColumns.Name}"
