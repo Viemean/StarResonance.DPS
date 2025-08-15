@@ -11,22 +11,24 @@ public class SkillViewModel : ObservableObject
         DisplayName = skillData.DisplayName.ToString() ?? "未知技能";
         ElementType = skillData.ElementType;
 
-        // --- 优化: 根据元素类型设置颜色并冻结画刷 ---
         var elementBrush = skillData.ElementType switch
         {
-            var s when s.Contains("火") => Brushes.OrangeRed,
-            var s when s.Contains("冰") => Brushes.DeepSkyBlue,
-            var s when s.Contains("雷") => Brushes.Yellow,
-            var s when s.Contains("森") => Brushes.LimeGreen,
-            var s when s.Contains("风") => Brushes.Turquoise,
-            var s when s.Contains("光") => Brushes.Gold,
-            var s when s.Contains("暗") => Brushes.MediumPurple,
-            var s when s.Contains("⚔️") => Brushes.WhiteSmoke, // 物理
+            { } s when s.Contains('火') => Brushes.OrangeRed,
+            { } s when s.Contains('冰') => Brushes.DeepSkyBlue,
+            { } s when s.Contains('雷') => Brushes.Yellow,
+            { } s when s.Contains('森') => Brushes.LimeGreen,
+            { } s when s.Contains('风') => Brushes.Turquoise,
+            { } s when s.Contains('光') => Brushes.Gold,
+            { } s when s.Contains('暗') => Brushes.MediumPurple,
+            "⚔️" => Brushes.WhiteSmoke,
             _ => Brushes.White
         };
 
-        // 冻结对象以提升性能。系统预定义的Brushes已经是冻结的，但这是一个好习惯。
-        if (elementBrush.CanFreeze) elementBrush.Freeze();
+        if (elementBrush is { CanFreeze: true } brush)
+        {
+            brush.Freeze();
+        }
+
         ElementColor = elementBrush;
 
         var percentage = playerTotal > 0 ? skillData.TotalDamage / playerTotal : 0;
@@ -39,7 +41,7 @@ public class SkillViewModel : ObservableObject
             if (damageBrush.CanFreeze) damageBrush.Freeze();
             TypeColor = damageBrush;
         }
-        else // 治疗
+        else
         {
             TotalValueText = MainViewModel.FormatNumber(skillData.TotalDamage);
             var healingBrush = Brushes.LimeGreen;
