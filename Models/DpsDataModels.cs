@@ -6,22 +6,22 @@ public record TotalCount
 {
     [JsonInclude]
     [JsonPropertyName("critical")]
-    public int Critical { get; init; }
+    public required int Critical { get; init; }
 
     [JsonInclude]
     [JsonPropertyName("lucky")]
-    public int Lucky { get; init; }
+    public required int Lucky { get; init; }
 
     [JsonInclude]
     [JsonPropertyName("total")]
-    public int Total { get; init; }
+    public required int Total { get; init; }
 }
 
 public record TotalStats
 {
     [JsonInclude]
     [JsonPropertyName("total")]
-    public double Total { get; init; }
+    public required double Total { get; init; }
 }
 
 public record UserData
@@ -36,7 +36,7 @@ public record UserData
 
     [JsonInclude]
     [JsonPropertyName("total_damage")]
-    public TotalStats TotalDamage { get; init; } = new();
+    public TotalStats TotalDamage { get; init; } = new() { Total = 0 };
 
     [JsonInclude]
     [JsonPropertyName("total_dps")]
@@ -44,7 +44,7 @@ public record UserData
 
     [JsonInclude]
     [JsonPropertyName("total_healing")]
-    public TotalStats TotalHealing { get; init; } = new();
+    public TotalStats TotalHealing { get; init; } = new() { Total = 0 };
 
     [JsonInclude]
     [JsonPropertyName("total_hps")]
@@ -60,7 +60,7 @@ public record UserData
 
     [JsonInclude]
     [JsonPropertyName("total_count")]
-    public TotalCount TotalCount { get; init; } = new();
+    public TotalCount TotalCount { get; init; } = new() { Critical = 0, Lucky = 0, Total = 0 };
 }
 
 public record ApiResponse
