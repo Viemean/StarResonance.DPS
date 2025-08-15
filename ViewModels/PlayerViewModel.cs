@@ -9,7 +9,6 @@ using StarResonance.DPS.Services;
 
 namespace StarResonance.DPS.ViewModels;
 
-// 修正：构造函数接收 INotificationService
 public partial class PlayerViewModel(
     long uid,
     LocalizationService localizationService,
@@ -22,7 +21,7 @@ public partial class PlayerViewModel(
     [ObservableProperty] private int _fightPoint;
 
     [ObservableProperty] private string? _healingDisplayPercentage;
-    [ObservableProperty] private bool _isExpanded;
+    private bool _isExpanded;
 
     [ObservableProperty] private bool _isIdle;
     [ObservableProperty] private string _name = null!;
@@ -40,10 +39,18 @@ public partial class PlayerViewModel(
     [ObservableProperty] private double _totalHps;
     public string DisplayName => Name;
 
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set
+        {
+            if (!SetProperty(ref _isExpanded, value) || value) return;
+            // 当 IsExpanded 被设置为折叠时清空技能数据以释放内存
+            if (Skills.Count > 0) Skills.Clear();
+        }
+    }
+
     public DateTime LastActiveTime { get; set; } = DateTime.UtcNow;
-
-    public DateTime LastLearnedTime { get; set; } = DateTime.MinValue;
-
     public ObservableCollection<SkillViewModel> Skills { get; } = new();
 
     public long Uid { get; } = uid;

@@ -6,6 +6,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -51,7 +52,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     private readonly ApiService _apiService;
     private readonly DispatcherTimer _clockTimer;
-    private readonly Lock _dataLock = new();
+    private readonly object _dataLock = new();
     private readonly DispatcherTimer _fightTimer;
     private readonly DispatcherTimer _notificationTimer;
 
@@ -110,7 +111,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         SystemFonts = Fonts.SystemFontFamilies.OrderBy(f => f.Source);
         _selectedFontFamily = new FontFamily("Microsoft YaHei");
 
-        // --- 关键修改：在这里为只读字段赋值 ---
         _onLocalizationPropertyChanged = (_, _) => OnPropertyChanged(nameof(Localization));
         _onApiServiceConnected = () =>
         {
@@ -122,10 +122,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             ConnectionStatusText = Localization["Disconnected"] ?? "已断开";
             ConnectionStatusColor = Brushes.Red;
         };
-        // --- 赋值结束 ---
 
-        // 使用已赋值的字段进行事件订阅
         Localization.PropertyChanged += _onLocalizationPropertyChanged;
+        BindingOperations.EnableCollectionSynchronization(Players, _dataLock); //启用线程安全的集合绑定 
+
         _apiService.DataReceived += OnDataReceived;
         _apiService.OnConnected += _onApiServiceConnected;
         _apiService.OnDisconnected += _onApiServiceDisconnected;
@@ -150,7 +150,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     }
 
     public IEnumerable<FontFamily> SystemFonts { get; }
+
     public LocalizationService Localization { get; }
+
     //玩家总数
     public int PlayerCount => Players.Count;
 
@@ -303,15 +305,13 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     private void FightTimer_Tick(object? sender, EventArgs e)
     {
         // 检查距离上次实际战斗数据变化是否在2秒窗口内
-        if ((DateTime.UtcNow - _lastCombatActivityTime).TotalSeconds <= 2)
-        {
-            // 只有在活跃期内，才累加秒数并更新UI
-            _elapsedSeconds++;
-            var timeSpan = TimeSpan.FromSeconds(_elapsedSeconds);
-            FightDurationText = timeSpan.TotalHours >= 1
-                ? timeSpan.ToString(@"h\:mm\:ss")
-                : timeSpan.ToString(@"m\:ss");
-        }
+        if (!((DateTime.UtcNow - _lastCombatActivityTime).TotalSeconds <= 2)) return;
+        // 只有在活跃期内，才累加秒数并更新UI
+        _elapsedSeconds++;
+        var timeSpan = TimeSpan.FromSeconds(_elapsedSeconds);
+        FightDurationText = timeSpan.TotalHours >= 1
+            ? timeSpan.ToString(@"h\:mm\:ss")
+            : timeSpan.ToString(@"m\:ss");
         // 如果超过2秒不活跃，则不执行任何操作，计时器会平滑地“冻结”。
     }
 
@@ -498,7 +498,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         {
             if (dataToProcess.User.Count != _playerCache.Count) hasChanged = true;
             else
-            {
                 foreach (var (key, newUserData) in dataToProcess.User)
                 {
                     if (_playerCache.TryGetValue(key, out var playerVm))
@@ -509,15 +508,12 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                         hasChanged = true;
                         break;
                     }
-                    else
-                    {
-                        if (!(newUserData.TotalDamage.Total > 0) && !(newUserData.TotalHealing.Total > 0) &&
-                            !(newUserData.TakenDamage > 0)) continue;
-                        hasChanged = true;
-                        break;
-                    }
+
+                    if (!(newUserData.TotalDamage.Total > 0) && !(newUserData.TotalHealing.Total > 0) &&
+                        !(newUserData.TakenDamage > 0)) continue;
+                    hasChanged = true;
+                    break;
                 }
-            }
         }
 
         if (hasChanged)
@@ -554,7 +550,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     /// <summary>
     ///     处理从API服务接收到的实时数据。
-    ///     此方法仅负责更新UI相关的视图模型，不包含任何计时器逻辑。
     /// </summary>
     /// <param name="data">从服务器接收到的最新API响应数据。</param>
     private async Task ProcessData(ApiResponse data)
@@ -563,44 +558,50 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         {
             if (data.User == null) return;
 
+            // 战斗首次启动逻辑
+            if (!_isFightActive && !IsPaused)
+                if (data.User.Values.Any(u => u.TotalDamage.Total > 0 || u.TotalHealing.Total > 0))
+                {
+                    _isFightActive = true;
+                    _lastCombatActivityTime = DateTime.UtcNow;
+                    // 启动计时器是UI操作，需要异步调度
+                    await Application.Current.Dispatcher.InvokeAsync(() => _fightTimer.Start());
+                }
+
+            // --- UI 更新现在可以直接在后台线程中进行 ---
             var activeKeys = new HashSet<string>(data.User.Keys);
 
+            // ToList() 创建一个副本，避免在遍历时修改集合
+            foreach (var existingKey in _playerCache.Keys.Except(activeKeys).ToList())
+            {
+                if (!_playerCache.TryGetValue(existingKey, out var playerToRemove)) continue;
+                Players.Remove(playerToRemove);
+                _playerCache.Remove(existingKey);
+            }
+
+            // 添加或更新玩家数据
+            foreach (var (key, userData) in data.User)
+            {
+                long.TryParse(key, out var uid);
+                if (!_playerCache.TryGetValue(key, out var playerVm))
+                {
+                    playerVm = new PlayerViewModel(uid, Localization, this);
+                    _playerCache.Add(key, playerVm);
+                    Players.Add(playerVm);
+                }
+
+                // 更新闲置模式所需的时间戳
+                if (Math.Abs(playerVm.TotalDamage - userData.TotalDamage.Total) > 1E-6 ||
+                    Math.Abs(playerVm.TotalHealing - userData.TotalHealing.Total) > 1E-6)
+                    playerVm.LastActiveTime = DateTime.UtcNow;
+
+                playerVm.Update(userData, playerVm.Rank, FightDurationText);
+            }
+
+            //将最终的UI更新操作异步调度到UI线程
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                //移除已离开的玩家
-                foreach (var existingKey in _playerCache.Keys.Except(activeKeys).ToList())
-                {
-                    if (!_playerCache.TryGetValue(existingKey, out var playerToRemove)) continue;
-                    Players.Remove(playerToRemove);
-                    _playerCache.Remove(existingKey);
-                }
-
-                //  添加或更新玩家数据
-                foreach (var (key, userData) in data.User)
-                {
-                    long.TryParse(key, out var uid);
-                    if (!_playerCache.TryGetValue(key, out var playerVm))
-                    {
-                        // 如果是新玩家，则创建并添加到缓存和UI集合中
-                        playerVm = new PlayerViewModel(uid, Localization, this);
-                        _playerCache.Add(key, playerVm);
-                        Players.Add(playerVm);
-                    }
-
-                    // 只要伤害或治疗有变化，就刷新该玩家的活跃时间
-                    if (Math.Abs(playerVm.TotalDamage - userData.TotalDamage.Total) > 1E-6 ||
-                        Math.Abs(playerVm.TotalHealing - userData.TotalHealing.Total) > 1E-6)
-                    {
-                        playerVm.LastActiveTime = DateTime.UtcNow;
-                    }
-
-                    // 调用玩家视图模型的Update方法，将新数据应用到UI
-                    playerVm.Update(userData, playerVm.Rank, FightDurationText);
-                }
-
-                // 更新列表排序和列总计等最终UI状态
                 UpdatePlayerList();
-                //更新玩家总数
                 OnPropertyChanged(nameof(PlayerCount));
             });
         }
