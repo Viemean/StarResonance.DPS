@@ -286,11 +286,17 @@
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                    <CheckBox Content="{Binding Localization[SmartIdleMode]}"
+                                              IsChecked="{Binding IsSmartIdleModeEnabled, Mode=TwoWay}"
+                                              Foreground="White" VerticalAlignment="Center"
+                                              ToolTip="{Binding Localization[SmartIdleMode_Tooltip]}" />
 
-                                <CheckBox Grid.Column="0" Content="{Binding Localization[SmartIdleMode]}"
-                                          IsChecked="{Binding IsSmartIdleModeEnabled, Mode=TwoWay}"
-                                          Foreground="White" VerticalAlignment="Center"
-                                          ToolTip="{Binding Localization[SmartIdleMode_Tooltip]}" />
+                                    <CheckBox Content="{Binding Localization[PauseOnExit]}"
+                                              IsChecked="{Binding IsPauseOnExitEnabled, Mode=TwoWay}"
+                                              Foreground="White" VerticalAlignment="Center"
+                                              Margin="20,0,0,0" />
+                                </StackPanel>
 
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                                     <TextBlock Text="{Binding Localization[FontSize]}" Foreground="White"

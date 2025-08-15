@@ -166,4 +166,7 @@
     <data name="SmartIdleMode_Tooltip" xml:space="preserve">
     <value>If enabled, inactive players are moved to the bottom and excluded from percentage stats.</value>
   </data>
+    <data name="PauseOnExit" xml:space="preserve">
+    <value>Pause service on exit</value>
+  </data>
 </root>

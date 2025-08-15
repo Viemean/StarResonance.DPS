@@ -10,7 +10,10 @@ using StarResonance.DPS.Services;
 namespace StarResonance.DPS.ViewModels;
 
 // 修正：构造函数接收 INotificationService
-public partial class PlayerViewModel(long uid, LocalizationService localizationService, INotificationService notificationService) : ObservableObject
+public partial class PlayerViewModel(
+    long uid,
+    LocalizationService localizationService,
+    INotificationService notificationService) : ObservableObject
 {
     [ObservableProperty] private string? _damageDisplayPercentage;
     private UserData? _data;
@@ -38,7 +41,7 @@ public partial class PlayerViewModel(long uid, LocalizationService localizationS
     public string DisplayName => Name;
 
     public DateTime LastActiveTime { get; set; } = DateTime.UtcNow;
-    
+
     public DateTime LastLearnedTime { get; set; } = DateTime.MinValue;
 
     public ObservableCollection<SkillViewModel> Skills { get; } = new();
@@ -56,23 +59,6 @@ public partial class PlayerViewModel(long uid, LocalizationService localizationS
     public string TotalDpsTooltip => TotalDps.ToString("N2");
     public string TotalHpsTooltip => TotalHps.ToString("N2");
     public string TakenDamageTooltip => TakenDamage.ToString("N0");
-    
-    /// <summary>
-    /// 当用户点击排名时，执行复制操作的命令。
-    /// </summary>
-    [RelayCommand]
-    private void CopyData()
-    {
-        try
-        {
-            Clipboard.SetText(CopyableString);
-            notificationService.ShowNotification(localizationService["CopySuccess"] ?? "复制成功!");
-        }
-        catch
-        {
-            notificationService.ShowNotification(localizationService["CopyFailed"] ?? "复制失败: 无法访问剪贴板");
-        }
-    }
 
     public string ToolTipText
     {
@@ -136,6 +122,23 @@ public partial class PlayerViewModel(long uid, LocalizationService localizationS
                    $"{critRateLabel}: {critRate:P1}, " +
                    $"{luckyRateLabel}: {luckyRate:P1}, " +
                    $"{durationLabel}: {_fightDuration}";
+        }
+    }
+
+    /// <summary>
+    ///     当用户点击排名时，执行复制操作的命令。
+    /// </summary>
+    [RelayCommand]
+    private void CopyData()
+    {
+        try
+        {
+            Clipboard.SetText(CopyableString);
+            notificationService.ShowNotification(localizationService["CopySuccess"] ?? "复制成功!");
+        }
+        catch
+        {
+            notificationService.ShowNotification(localizationService["CopyFailed"] ?? "复制失败: 无法访问剪贴板");
         }
     }
 

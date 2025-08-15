@@ -165,4 +165,7 @@
     <data name="SmartIdleMode_Tooltip" xml:space="preserve">
     <value>启用后，长时间无数据变化的玩家将被视为“闲置”并沉底显示，且不计入百分比统计。</value>
   </data>
+    <data name="PauseOnExit" xml:space="preserve">
+    <value>退出时暂停服务</value>
+  </data>
 </root>

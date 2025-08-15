@@ -26,6 +26,7 @@ public class AppState
     public string BackendUrl { get; init; } = "ws://localhost:8989";
     public int UiUpdateInterval { get; init; } = 250;
     public string? CultureName { get; init; }
+    public bool PauseOnExit { get; init; } = true;
 }
 
 /// <summary>
@@ -64,23 +65,19 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     private TimeSpan _countdownTimeLeft;
     private DispatcherTimer? _countdownTimer;
     [ObservableProperty] private string _currentTime = DateTime.Now.ToLongTimeString();
-
     [ObservableProperty] private string _customCountdownMinutes = "10";
     private int _elapsedSeconds;
     private PlayerViewModel? _expandedPlayer;
     [ObservableProperty] private string _fightDurationText = "0:00";
     [ObservableProperty] private double _fontSize = 14;
-
-    // 在 MainViewModel.cs 文件中添加以下属性和方法
-
     [ObservableProperty] private bool _isCountdownOptionsPopupOpen;
     [ObservableProperty] private bool _isCountdownRunning;
-
     [ObservableProperty] private bool _isCustomCountdownPopupOpen;
     private bool _isFightActive;
     [ObservableProperty] private bool _isLocked;
     [ObservableProperty] private bool _isNotificationVisible;
     [ObservableProperty] private bool _isPaused;
+    [ObservableProperty] private bool _isPauseOnExitEnabled = true;
     [ObservableProperty] private bool _isSettingsVisible;
     [ObservableProperty] private bool _isSmartIdleModeEnabled;
     private ApiResponse? _latestReceivedData;
@@ -241,6 +238,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                     IsSmartIdleModeEnabled = state.IsSmartIdleModeEnabled;
                     BackendUrl = state.BackendUrl;
                     UiUpdateInterval = state.UiUpdateInterval;
+                    IsPauseOnExitEnabled = state.PauseOnExit;
                     if (!string.IsNullOrEmpty(state.CultureName))
                         Localization.CurrentCulture = new CultureInfo(state.CultureName);
                     return;
@@ -269,7 +267,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 IsSmartIdleModeEnabled = IsSmartIdleModeEnabled,
                 BackendUrl = BackendUrl,
                 UiUpdateInterval = UiUpdateInterval,
-                CultureName = Localization.CurrentCulture.Name
+                CultureName = Localization.CurrentCulture.Name,
+                PauseOnExit = IsPauseOnExitEnabled
             };
             var json = JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_stateFilePath, json);
@@ -763,7 +762,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     public async Task PauseOnExitAsync()
     {
-        if (!IsPaused) await _apiService.SetPauseStateAsync(true);
+        // 仅当复选框被选中且当前未暂停时，才发送暂停指令
+        if (IsPauseOnExitEnabled && !IsPaused) await _apiService.SetPauseStateAsync(true);
     }
 
     [RelayCommand]

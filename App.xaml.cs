@@ -13,9 +13,9 @@ public partial class App
 {
     private const string AppMutexName = "StarResonance.DPS-SingleInstanceMutex";
     private Mutex? _appMutex;
-    
+
     public new static App Current => (App)Application.Current;
-    
+
     private IServiceProvider Services { get; } = ConfigureServices();
 
     /// <summary>

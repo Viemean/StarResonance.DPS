@@ -165,4 +165,7 @@
     <data name="SmartIdleMode_Tooltip" xml:space="preserve">
     <value>有効時、無操作のプレイヤーはリスト下部に移動し、%計算から除外されます。</value>
   </data>
+    <data name="PauseOnExit" xml:space="preserve">
+    <value>終了時にサービスを一時停止</value>
+  </data>
 </root>
