@@ -8,7 +8,7 @@
         <UseWPF>true</UseWPF>
         <PublishSingleFile>true</PublishSingleFile>
         <SelfContained>false</SelfContained>
-        <PublishReadyToRun>true</PublishReadyToRun>
+        <PublishReadyToRun>false</PublishReadyToRun>
         <RuntimeIdentifier>win-x64</RuntimeIdentifier>
         <Version>1.0.5</Version>
         <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
