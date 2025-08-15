@@ -34,9 +34,9 @@ public class AppState
 /// </summary>
 public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotificationService
 {
+    //闲置时长
     private const int IdleTimeoutSeconds = 30;
-
-// 修改 Sorters 字典
+    
     private static readonly Dictionary<string, Func<PlayerViewModel, object>> Sorters = new()
     {
         { SortableColumns.Name, p => p.DisplayName },
