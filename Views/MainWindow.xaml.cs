@@ -133,15 +133,16 @@ public partial class MainWindow
         }
     }
 
+// File: Views/MainWindow.xaml.cs
+
     private async void OnMainWindowClosing(object? sender, CancelEventArgs e)
     {
         try
         {
-            if (_viewModel != null)
-            {
-                await _viewModel.PauseOnExitAsync();
-                await _viewModel.DisposeAsync();
-            }
+            if (_viewModel == null) return;
+            _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
+            await _viewModel.PauseOnExitAsync();
+            await _viewModel.DisposeAsync();
         }
         catch (Exception ex)
         {

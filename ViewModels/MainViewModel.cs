@@ -36,7 +36,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 {
     //闲置时长
     private const int IdleTimeoutSeconds = 30;
-    
+
     private static readonly Dictionary<string, Func<PlayerViewModel, object>> Sorters = new()
     {
         { SortableColumns.Name, p => p.DisplayName },
@@ -54,6 +54,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     private readonly Lock _dataLock = new();
     private readonly DispatcherTimer _fightTimer;
     private readonly DispatcherTimer _notificationTimer;
+
+    private readonly Action _onApiServiceConnected;
+    private readonly Action _onApiServiceDisconnected;
+    private readonly PropertyChangedEventHandler _onLocalizationPropertyChanged;
     private readonly Dictionary<string, PlayerViewModel> _playerCache = new();
     private readonly string _stateFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "dps_state.json");
     private readonly DispatcherTimer _stateSaveTimer;
@@ -102,20 +106,29 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     {
         _apiService = apiService;
         Localization = localizationService;
-        Localization.PropertyChanged += (_, _) => OnPropertyChanged(nameof(Localization));
         SystemFonts = Fonts.SystemFontFamilies.OrderBy(f => f.Source);
         _selectedFontFamily = new FontFamily("Microsoft YaHei");
-        _apiService.DataReceived += OnDataReceived;
-        _apiService.OnConnected += () =>
+
+        // --- 关键修改：在这里为只读字段赋值 ---
+        _onLocalizationPropertyChanged = (_, _) => OnPropertyChanged(nameof(Localization));
+        _onApiServiceConnected = () =>
         {
             ConnectionStatusText = Localization["Connected"] ?? "已连接";
             ConnectionStatusColor = Brushes.LimeGreen;
         };
-        _apiService.OnDisconnected += () =>
+        _onApiServiceDisconnected = () =>
         {
             ConnectionStatusText = Localization["Disconnected"] ?? "已断开";
             ConnectionStatusColor = Brushes.Red;
         };
+        // --- 赋值结束 ---
+
+        // 使用已赋值的字段进行事件订阅
+        Localization.PropertyChanged += _onLocalizationPropertyChanged;
+        _apiService.DataReceived += OnDataReceived;
+        _apiService.OnConnected += _onApiServiceConnected;
+        _apiService.OnDisconnected += _onApiServiceDisconnected;
+
         _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _clockTimer.Tick += (_, _) => CurrentTime = DateTime.Now.ToLongTimeString();
         _clockTimer.Start();
@@ -140,6 +153,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     public async ValueTask DisposeAsync()
     {
+        _apiService.DataReceived -= OnDataReceived;
+        _apiService.OnConnected -= _onApiServiceConnected;
+        _apiService.OnDisconnected -= _onApiServiceDisconnected;
+        Localization.PropertyChanged -= _onLocalizationPropertyChanged;
+
         _clockTimer.Stop();
         _uiUpdateTimer.Stop();
         _fightTimer.Stop();
@@ -483,7 +501,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         }
     }
 
-/// <summary>
+    /// <summary>
     ///     处理从API服务接收到的实时数据。
     ///     此方法会更新或添加玩家视图模型，并触发UI列表的刷新。
     /// </summary>
