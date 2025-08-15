@@ -1,4 +1,5 @@
 ﻿using System.Net.Http;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using StarResonance.DPS.Models;
@@ -103,14 +104,14 @@ public class ApiService : IAsyncDisposable
         if (_httpClient == null) return null;
         try
         {
-            var response = await _httpClient.GetAsync("/api/data");
-            if (!response.IsSuccessStatusCode) return null;
-            var jsonString = await response.Content.ReadAsStringAsync();
-            var apiResponse = JsonSerializer.Deserialize<ApiResponse>(jsonString,
+            return await _httpClient.GetFromJsonAsync<ApiResponse>("/api/data",
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            return apiResponse;
         }
-        catch (Exception)
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+        catch (JsonException)
         {
             return null;
         }
@@ -121,14 +122,14 @@ public class ApiService : IAsyncDisposable
         if (_httpClient == null) return null;
         try
         {
-            var response = await _httpClient.GetAsync($"/api/skill/{uid}", ct);
-            if (!response.IsSuccessStatusCode) return null;
-
-            var jsonString = await response.Content.ReadAsStringAsync(ct);
-            return JsonSerializer.Deserialize<SkillApiResponse>(jsonString,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return await _httpClient.GetFromJsonAsync<SkillApiResponse>($"/api/skill/{uid}",
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }, ct);
         }
-        catch (Exception)
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+        catch (JsonException)
         {
             return null;
         }
