@@ -28,6 +28,10 @@ public class AppState
     public int UiUpdateInterval { get; init; } = 250;
     public string? CultureName { get; init; }
     public bool PauseOnExit { get; init; } = true;
+
+    //用于保存排序规则
+    public string? SortColumn { get; init; }
+    public ListSortDirection SortDirection { get; init; }
 }
 
 /// <summary>
@@ -269,6 +273,14 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                     BackendUrl = state.BackendUrl;
                     UiUpdateInterval = state.UiUpdateInterval;
                     IsPauseOnExitEnabled = state.PauseOnExit;
+
+                    //加载已保存的排序设置
+                    if (!string.IsNullOrEmpty(state.SortColumn))
+                    {
+                        SortColumn = state.SortColumn;
+                        SortDirection = state.SortDirection;
+                    }
+
                     if (!string.IsNullOrEmpty(state.CultureName))
                         Localization.CurrentCulture = new CultureInfo(state.CultureName);
                     return;
@@ -298,7 +310,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 BackendUrl = BackendUrl,
                 UiUpdateInterval = UiUpdateInterval,
                 CultureName = Localization.CurrentCulture.Name,
-                PauseOnExit = IsPauseOnExitEnabled
+                PauseOnExit = IsPauseOnExitEnabled,
+                //保存当前的排序设置
+                SortColumn = SortColumn,
+                SortDirection = SortDirection
             };
             var json = JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_stateFilePath, json);
