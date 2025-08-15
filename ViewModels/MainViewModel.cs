@@ -483,7 +483,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         }
     }
 
-    /// <summary>
+/// <summary>
     ///     处理从API服务接收到的实时数据。
     ///     此方法会更新或添加玩家视图模型，并触发UI列表的刷新。
     /// </summary>
@@ -522,11 +522,12 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                         Players.Add(playerVm);
                     }
 
-                    playerVm.Update(userData, playerVm.Rank, FightDurationText);
-
+                    // 修正: 先比较旧数据和新数据，再更新
                     if (Math.Abs(playerVm.TotalDamage - userData.TotalDamage.Total) > 1E-6 ||
                         Math.Abs(playerVm.TotalHealing - userData.TotalHealing.Total) > 1E-6)
                         playerVm.LastActiveTime = DateTime.UtcNow;
+
+                    playerVm.Update(userData, playerVm.Rank, FightDurationText);
                 }
 
                 UpdatePlayerList();
@@ -695,7 +696,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     }
 
     [RelayCommand]
-    public async Task StartCountdown(string? secondsStr)
+    private async Task StartCountdown(string? secondsStr)
     {
         if (IsCountdownRunning) return;
         if (!int.TryParse(secondsStr, out var seconds) || seconds <= 0)
