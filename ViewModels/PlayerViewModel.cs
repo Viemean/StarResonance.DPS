@@ -180,34 +180,42 @@ public partial class PlayerViewModel(
 
     public void CalculateAccurateCritDamage(IReadOnlyDictionary<string, SkillData> skillsData)
     {
-        const int minSamples = 2; // 最低样本数要求
+        const int minSamples = 2;
+        var multipliers = new List<(double multiplier, double weight)>();
 
-        // 筛选出同时具有普通和暴击记录的有效伤害技能
-        var validDamageSkills = skillsData.Values.Where(s =>
+        // 筛选出同时具有普通和暴击记录的、可供分析的有效伤害技能
+        var validSkills = skillsData.Values.Where(s =>
             s.Type == "伤害" &&
-            s.CountBreakdown.Normal > 0 &&
-            s.CountBreakdown.Critical > 0).ToList();
+            s.CountBreakdown.Normal >= minSamples &&
+            s.CountBreakdown.Critical >= minSamples).ToList();
 
-        if (!validDamageSkills.Any())
+        foreach (var skill in validSkills)
         {
-            AccurateCritDamageText = localizationService["NotApplicable"] ?? "数据不足";
-            OnPropertyChanged(nameof(CritDamageVisibility));
-            return;
+            var avgNormal = skill.DamageBreakdown.Normal / skill.CountBreakdown.Normal;
+            if (avgNormal <= 0) continue; // 避免除以零
+
+            var totalCritDamage = skill.DamageBreakdown.Critical + skill.DamageBreakdown.CritLucky;
+            var avgCrit = totalCritDamage / skill.CountBreakdown.Critical;
+
+            // 记录每个技能的暴击倍率及其权重（权重为该技能的总伤害）
+            multipliers.Add((avgCrit / avgNormal, skill.TotalDamage));
         }
 
-        // 仅汇总有效技能的数据
-        var totalNormalCount = validDamageSkills.Sum(s => s.CountBreakdown.Normal);
-        var totalCritCount = validDamageSkills.Sum(s => s.CountBreakdown.Critical);
-        var totalNormalDamage = validDamageSkills.Sum(s => s.DamageBreakdown.Normal);
-        var totalCritDamage = validDamageSkills.Sum(s => s.DamageBreakdown.Critical + s.DamageBreakdown.CritLucky);
-
-        // 基于汇总后的有效数据进行计算
-        if (totalNormalCount >= minSamples && totalCritCount >= minSamples && totalNormalDamage > 0)
+        // 基于所有有效技能的数据，进行加权平均计算
+        if (multipliers.Count != 0)
         {
-            var avgNormal = totalNormalDamage / totalNormalCount;
-            var avgCrit = totalCritDamage / totalCritCount;
-            var bonus = (avgCrit / avgNormal) - 1;
-            AccurateCritDamageText = $"{bonus:P1}";
+            var totalWeight = multipliers.Sum(t => t.weight);
+            if (totalWeight > 0)
+            {
+                var totalWeightedMultiplier = multipliers.Sum(t => t.multiplier * t.weight);
+                var weightedAvgMultiplier = totalWeightedMultiplier / totalWeight;
+                var bonus = weightedAvgMultiplier - 1;
+                AccurateCritDamageText = $"{bonus:P1}";
+            }
+            else
+            {
+                AccurateCritDamageText = localizationService["NotApplicable"] ?? "数据不足";
+            }
         }
         else
         {
@@ -219,43 +227,49 @@ public partial class PlayerViewModel(
 
     public void CalculateAccurateCritHealing(IReadOnlyDictionary<string, SkillData> skillsData)
     {
-        const int minSamples = 2; // 最低样本数要求
+        const int minSamples = 2;
+        var multipliers = new List<(double multiplier, double weight)>();
 
-        // 筛选出同时具有普通和暴击记录的有效治疗技能
-        var validHealingSkills = skillsData.Values.Where(s =>
+        // 筛选出同时具有普通和暴击记录的、可供分析的有效治疗技能
+        var validSkills = skillsData.Values.Where(s =>
             s.Type == "治疗" &&
-            s.CountBreakdown.Normal > 0 &&
-            s.CountBreakdown.Critical > 0).ToList();
-
-        if (!validHealingSkills.Any())
+            s.CountBreakdown.Normal >= minSamples &&
+            s.CountBreakdown.Critical >= minSamples).ToList();
+        
+        foreach (var skill in validSkills)
         {
-            AccurateCritHealingText = localizationService["NotApplicable"] ?? "数据不足";
-            OnPropertyChanged(nameof(CritHealingVisibility));
-            return;
+            var avgNormal = skill.DamageBreakdown.Normal / skill.CountBreakdown.Normal;
+            if (avgNormal <= 0) continue; // 避免除以零
+
+            var totalCritHealing = skill.DamageBreakdown.Critical + skill.DamageBreakdown.CritLucky;
+            var avgCrit = totalCritHealing / skill.CountBreakdown.Critical;
+        
+            // 记录每个技能的暴疗倍率及其权重（权重为该技能的总治疗量）
+            multipliers.Add((avgCrit / avgNormal, skill.TotalDamage));
         }
 
-        // 仅汇总有效技能的数据
-        var totalNormalCount = validHealingSkills.Sum(s => s.CountBreakdown.Normal);
-        var totalCritCount = validHealingSkills.Sum(s => s.CountBreakdown.Critical);
-        var totalNormalHealing = validHealingSkills.Sum(s => s.DamageBreakdown.Normal);
-        var totalCritHealing = validHealingSkills.Sum(s => s.DamageBreakdown.Critical + s.DamageBreakdown.CritLucky);
-
-        // 基于汇总后的有效数据进行计算
-        if (totalNormalCount >= minSamples && totalCritCount >= minSamples && totalNormalHealing > 0)
+        // 基于所有有效技能的数据，进行加权平均计算
+        if (multipliers.Count != 0)
         {
-            var avgNormal = totalNormalHealing / totalNormalCount;
-            var avgCrit = totalCritHealing / totalCritCount;
-            var bonus = (avgCrit / avgNormal) - 1;
-            AccurateCritHealingText = $"{bonus:P1}";
+            var totalWeight = multipliers.Sum(t => t.weight);
+            if (totalWeight > 0)
+            {
+                var totalWeightedMultiplier = multipliers.Sum(t => t.multiplier * t.weight);
+                var weightedAvgMultiplier = totalWeightedMultiplier / totalWeight;
+                var bonus = weightedAvgMultiplier - 1;
+                AccurateCritHealingText = $"{bonus:P1}";
+            }
+            else
+            {
+                AccurateCritHealingText = localizationService["NotApplicable"] ?? "数据不足";
+            }
         }
         else
         {
             AccurateCritHealingText = localizationService["NotApplicable"] ?? "数据不足";
         }
-
         OnPropertyChanged(nameof(CritHealingVisibility));
     }
-
     [RelayCommand]
     private void CopyData()
     {
