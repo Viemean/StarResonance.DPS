@@ -105,32 +105,6 @@
             </Setter>
         </Style>
 
-        <Style x:Key="TransparentButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="5,2" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"
-                                SnapsToDevicePixels="True">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                              SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"
-                                              RecognizesAccessKey="True" />
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#44FFFFFF" />
-                </Trigger>
-            </Style.Triggers>
-        </Style>
-
         <Style x:Key="HeaderLabel" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Bold" /><Setter Property="VerticalAlignment" Value="Center" />
         </Style>
@@ -311,7 +285,6 @@
 
                     <ListView Grid.Row="1" ItemsSource="{Binding Players}" Background="Transparent" BorderThickness="0"
                               HorizontalContentAlignment="Stretch" Margin="5,0,0,0"
-                              ScrollViewer.CanContentScroll="False"
                               VirtualizingStackPanel.IsVirtualizing="True"
                               VirtualizingStackPanel.VirtualizationMode="Recycling"
                               ScrollViewer.VerticalScrollBarVisibility="Auto"
