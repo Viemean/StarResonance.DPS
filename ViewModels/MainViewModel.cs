@@ -71,7 +71,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     private readonly DispatcherTimer _uiUpdateTimer;
     private readonly DispatcherTimer _skillUpdateTimer; // 用于实时更新展开的技能列表
 
-    private bool _isSortingPaused; 
+    private bool _isSortingPaused;
     [ObservableProperty] private string _backendUrl = "ws://localhost:8989";
     [ObservableProperty] private Brush _connectionStatusColor = Brushes.Orange;
     [ObservableProperty] private string _connectionStatusText = "正在连接...";
@@ -176,7 +176,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     partial void OnCustomCountdownMinutesChanged(string value)
     {
-
         if (double.TryParse(value, out var minutes))
         {
             if (!(minutes > 60)) return;
@@ -184,6 +183,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             OnPropertyChanged(nameof(CustomCountdownMinutes));
         }
     }
+
     public MainViewModel(ApiService apiService, LocalizationService localizationService)
     {
         _skillUpdateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -574,7 +574,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             _skillUpdateTimer.Stop();
 
             _isSortingPaused = false; //关闭详情时，解除排序暂停
-            UpdatePlayerList();       //并立即刷新一次列表以同步最新排序
+            UpdatePlayerList(); //并立即刷新一次列表以同步最新排序
             return;
         }
 
@@ -591,7 +591,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
         // 无论是主动获取的还是第一次展开，都强制刷新一次以获取最新数据
         await FetchAndProcessSkillDataAsync(player);
-    
+
         // 展开后启动定时器
         _skillUpdateTimer.Start();
     }
@@ -1132,7 +1132,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     {
         _skillUpdateTimer.Stop();
         _expandedPlayer = null;
-        _isSortingPaused = false;//确保重置时解除排序暂停
+        _isSortingPaused = false; //确保重置时解除排序暂停
         if (IsInSnapshotMode)
         {
             IsInSnapshotMode = false;
@@ -1375,15 +1375,26 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     private void CheckForIdlePlayers()
     {
         var now = DateTime.UtcNow;
+        var needsRefresh = false;
+
         foreach (var player in _playerCache.Values)
         {
-            // 如果玩家当前不闲置，但上次活跃时间已经超过阈值，则将其设为闲置
+            // 如果玩家当前不闲置，但上次活跃时间已经超过阈值
             if (player.IsIdle || !((now - player.LastActiveTime).TotalSeconds > IdleTimeoutSeconds)) continue;
             player.IsIdle = true;
             // 将闲置玩家的百分比清空
             player.DamageDisplayPercentage = null;
             player.HealingDisplayPercentage = null;
             player.TakenDamageDisplayPercentage = null;
+
+            // 标记列表需要刷新排序
+            needsRefresh = true;
+        }
+
+        // 如果有玩家的状态变为了闲置，则调用 UpdatePlayerList 来刷新UI
+        if (needsRefresh)
+        {
+            UpdatePlayerList();
         }
     }
 }

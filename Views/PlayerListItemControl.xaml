@@ -20,9 +20,16 @@
                 <Setter Property="BorderThickness" Value="0,0,0,1" />
                 <Setter Property="BorderBrush" Value="#444" />
                 <Style.Triggers>
-                    <DataTrigger Binding="{Binding IsIdle}" Value="True">
+                    <MultiDataTrigger>
+                        <MultiDataTrigger.Conditions>
+                            <Condition Binding="{Binding IsIdle}" Value="True" />
+                            <!-- ReSharper disable Xaml.BindingWithContextNotResolved -->
+                            <Condition Binding="{Binding DataContext.IsSmartIdleModeEnabled, 
+                                               RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                            <!-- ReSharper restore Xaml.BindingWithContextNotResolved -->
+                        </MultiDataTrigger.Conditions>
                         <Setter Property="Opacity" Value="0.6" />
-                    </DataTrigger>
+                    </MultiDataTrigger>
                     <DataTrigger Binding="{Binding ShowSeparatorAfter}" Value="True">
                         <Setter Property="BorderBrush" Value="Green" />
                         <Setter Property="BorderThickness" Value="0,0,0,2" />
