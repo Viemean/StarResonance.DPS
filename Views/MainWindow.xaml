@@ -44,35 +44,35 @@
         </Style>
 
         <Style x:Key="ScrollBarPageButton" TargetType="{x:Type RepeatButton}">
-            <Setter Property="SnapsToDevicePixels" Value="True"/>
-            <Setter Property="OverridesDefaultStyle" Value="true"/>
-            <Setter Property="IsTabStop" Value="False"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="OverridesDefaultStyle" Value="true" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Background" Value="Transparent" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type RepeatButton}">
-                        <Rectangle Fill="Transparent" Width="{TemplateBinding Width}" Height="{TemplateBinding Height}"/>
+                        <Rectangle Fill="Transparent" Width="{TemplateBinding Width}" Height="{TemplateBinding Height}" />
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
         <Style x:Key="ScrollBarThumb" TargetType="{x:Type Thumb}">
-            <Setter Property="SnapsToDevicePixels" Value="True"/>
-            <Setter Property="OverridesDefaultStyle" Value="true"/>
-            <Setter Property="IsTabStop" Value="False"/>
-            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="OverridesDefaultStyle" Value="true" />
+            <Setter Property="IsTabStop" Value="False" />
+            <Setter Property="Focusable" Value="False" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Thumb}">
-                        <Border x:Name="thumbBorder" CornerRadius="3" Background="#66FFFFFF" BorderThickness="0"/>
+                        <Border x:Name="thumbBorder" CornerRadius="3" Background="#66FFFFFF" BorderThickness="0" />
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="thumbBorder" Property="Background" Value="#99FFFFFF"/>
+                                <Setter TargetName="thumbBorder" Property="Background" Value="#99FFFFFF" />
                             </Trigger>
                             <Trigger Property="IsDragging" Value="True">
-                                <Setter TargetName="thumbBorder" Property="Background" Value="#CCFFFFFF"/>
+                                <Setter TargetName="thumbBorder" Property="Background" Value="#CCFFFFFF" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -81,24 +81,26 @@
         </Style>
 
         <Style TargetType="{x:Type ScrollBar}">
-            <Setter Property="SnapsToDevicePixels" Value="True"/>
-            <Setter Property="OverridesDefaultStyle" Value="true"/>
-            <Setter Property="Width" Value="8"/>
-            <Setter Property="Stylus.IsFlicksEnabled" Value="False"/>
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="OverridesDefaultStyle" Value="true" />
+            <Setter Property="Width" Value="8" />
+            <Setter Property="Stylus.IsFlicksEnabled" Value="False" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ScrollBar}">
                         <Grid>
-                            <Border CornerRadius="4" Background="#22FFFFFF"/>
+                            <Border CornerRadius="4" Background="#22FFFFFF" />
                             <Track x:Name="PART_Track" IsDirectionReversed="true" Width="8">
                                 <Track.Thumb>
-                                    <Thumb Style="{StaticResource ScrollBarThumb}" Margin="1"/>
+                                    <Thumb Style="{StaticResource ScrollBarThumb}" Margin="1" />
                                 </Track.Thumb>
                                 <Track.IncreaseRepeatButton>
-                                    <RepeatButton Style="{StaticResource ScrollBarPageButton}" Command="ScrollBar.PageDownCommand"/>
+                                    <RepeatButton Style="{StaticResource ScrollBarPageButton}"
+                                                  Command="ScrollBar.PageDownCommand" />
                                 </Track.IncreaseRepeatButton>
                                 <Track.DecreaseRepeatButton>
-                                    <RepeatButton Style="{StaticResource ScrollBarPageButton}" Command="ScrollBar.PageUpCommand"/>
+                                    <RepeatButton Style="{StaticResource ScrollBarPageButton}"
+                                                  Command="ScrollBar.PageUpCommand" />
                                 </Track.DecreaseRepeatButton>
                             </Track>
                         </Grid>
@@ -157,7 +159,7 @@
                                     Foreground="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}">
                                     <TextBlock.Visibility>
                                         <MultiBinding Converter="{StaticResource SortColumnVisibilityConverter}">
-                                            <Binding Path="DataContext.SortColumn" ElementName= "RootWindow" />
+                                            <Binding Path="DataContext.SortColumn" ElementName="RootWindow" />
                                             <Binding Path="CommandParameter"
                                                      RelativeSource="{RelativeSource TemplatedParent}" />
                                         </MultiBinding>
@@ -199,9 +201,12 @@
                     <DockPanel>
                         <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center"
                                     Margin="5,0">
-                            <Button Content="💾" ToolTip="{Binding Localization[ExportCsv]}"
-                                    Command="{Binding ExportToCsvCommand}" Padding="8,2"
+                            <Button Content="💾" ToolTip="创建快照"
+                                    Command="{Binding SaveSnapshotCommand}" Padding="8,2"
                                     Style="{StaticResource TransparentButtonStyle}" />
+                            <Button Content="📂" ToolTip="导入快照"
+                                    Command="{Binding LoadSnapshotCommand}" Padding="8,2"
+                                    Style="{StaticResource TransparentButtonStyle}" Margin="5,0,0,0" />
                             <TextBlock Text="{Binding CurrentTime}" Foreground="Cyan" FontWeight="Bold"
                                        VerticalAlignment="Center" Margin="8,0,0,0" />
                         </StackPanel>
@@ -214,44 +219,59 @@
                             <Button Content="⚙" ToolTip="{Binding Localization[Settings]}" Click="SettingsButton_Click"
                                     Style="{StaticResource TransparentButtonStyle}" />
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Ellipse Width="10" Height="10" Fill="{Binding PauseStatusColor}" Margin="5,0,5,0"
-                                     VerticalAlignment="Center" />
-                            <Button Content="{Binding PauseButtonText}" Click="PauseButton_Click"
-                                    Style="{StaticResource TransparentButtonStyle}" />
-                            <Button Content="{Binding Localization[Reset]}" Click="ResetButton_Click"
-                                    Style="{StaticResource TransparentButtonStyle}" />
-                            <Separator Margin="5,0" />
-                            <Ellipse Width="10" Height="10" Fill="{Binding ConnectionStatusColor}" Margin="0,0,5,0"
-                                     VerticalAlignment="Center" />
-                            <TextBlock Text="{Binding ConnectionStatusText}" Foreground="Gray"
-                                       VerticalAlignment="Center" />
-                            <Separator Margin="5,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" />
-                            <Button Content="❌" ToolTip="{Binding Localization[AbortCountdown]}"
-                                    VerticalAlignment="Center" Click="AbortCountdownButton_Click" Margin="0,0,5,0"
-                                    Visibility="{Binding IsCountdownRunning, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                    Style="{StaticResource TransparentButtonStyle}" />
-                            <Grid VerticalAlignment="Center" Margin="0,0,5,0" MinWidth="30">
-                                <TextBlock Text="{Binding CountdownText}" Foreground="Orange" FontWeight="Bold"
-                                           HorizontalAlignment="Center"
-                                           Visibility="{Binding IsCountdownRunning, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                <Grid
-                                    Visibility="{Binding IsCountdownRunning, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
-                                    <TextBlock Text="{Binding Localization[Pause]}" Foreground="Red" FontWeight="Bold"
+                        <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal"
+                                        Visibility="{Binding IsInSnapshotMode, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                <Ellipse Width="10" Height="10" Fill="{Binding PauseStatusColor}" Margin="5,0,5,0"
+                                         VerticalAlignment="Center" />
+                                <Button Content="{Binding PauseButtonText}" Click="PauseButton_Click"
+                                        Style="{StaticResource TransparentButtonStyle}" />
+                                <Button Content="{Binding Localization[Reset]}" Click="ResetButton_Click"
+                                        Style="{StaticResource TransparentButtonStyle}" />
+                                <Separator Margin="5,0" />
+                                <Ellipse Width="10" Height="10" Fill="{Binding ConnectionStatusColor}" Margin="0,0,5,0"
+                                         VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding ConnectionStatusText}" Foreground="Gray"
+                                           VerticalAlignment="Center" />
+                                <Separator Margin="5,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" />
+                                <Button Content="❌" ToolTip="{Binding Localization[AbortCountdown]}"
+                                        VerticalAlignment="Center" Click="AbortCountdownButton_Click" Margin="0,0,5,0"
+                                        Visibility="{Binding IsCountdownRunning, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        Style="{StaticResource TransparentButtonStyle}" />
+                                <Grid VerticalAlignment="Center" Margin="0,0,5,0" MinWidth="30">
+                                    <TextBlock Text="{Binding CountdownText}" Foreground="Orange" FontWeight="Bold"
                                                HorizontalAlignment="Center"
-                                               Visibility="{Binding IsPaused, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                    <TextBlock Text="{Binding FightDurationText}" Foreground="White" FontWeight="Bold"
-                                               HorizontalAlignment="Center"
-                                               Visibility="{Binding IsPaused, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                                               Visibility="{Binding IsCountdownRunning, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                    <Grid
+                                        Visibility="{Binding IsCountdownRunning, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
+                                        <TextBlock Text="{Binding Localization[Pause]}" Foreground="Red"
+                                                   FontWeight="Bold"
+                                                   HorizontalAlignment="Center"
+                                                   Visibility="{Binding IsPaused, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                        <TextBlock Text="{Binding FightDurationText}" Foreground="White"
+                                                   FontWeight="Bold"
+                                                   HorizontalAlignment="Center"
+                                                   Visibility="{Binding IsPaused, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
+                                    </Grid>
                                 </Grid>
-                            </Grid>
-                            <Button x:Name="CountdownButton" Command="{Binding OpenCountdownOptionsCommand}"
-                                    ToolTip="{Binding Localization[Countdown]}"
-                                    Visibility="{Binding IsCountdownRunning, Converter={StaticResource InverseBooleanToVisibilityConverter}}"
-                                    Style="{StaticResource TransparentButtonStyle}">
-                                <TextBlock Text="🕒" Foreground="White" VerticalAlignment="Center" />
-                            </Button>
-                        </StackPanel>
+                                <Button x:Name="CountdownButton" Command="{Binding OpenCountdownOptionsCommand}"
+                                        ToolTip="{Binding Localization[Countdown]}"
+                                        Visibility="{Binding IsCountdownRunning, Converter={StaticResource InverseBooleanToVisibilityConverter}}"
+                                        Style="{StaticResource TransparentButtonStyle}">
+                                    <TextBlock Text="🕒" Foreground="White" VerticalAlignment="Center" />
+                                </Button>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal"
+                                        Visibility="{Binding IsInSnapshotMode, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="[快照模式] " Foreground="Orange" FontWeight="Bold"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding LoadedSnapshotFileName}" Foreground="White"
+                                           VerticalAlignment="Center" />
+                                <Button Content="返回实时" Click="ResetButton_Click" Margin="10,0,0,0"
+                                        Style="{StaticResource TransparentButtonStyle}" />
+                            </StackPanel>
+                        </Grid>
                     </DockPanel>
                 </Border>
 

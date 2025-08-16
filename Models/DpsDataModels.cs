@@ -7,7 +7,7 @@ public record TotalCount
     [JsonInclude]
     [JsonPropertyName("normal")]
     public required int Normal { get; init; }
-    
+
     [JsonInclude]
     [JsonPropertyName("critical")]
     public required int Critical { get; init; }
@@ -56,7 +56,8 @@ public record UserData
 
     [JsonInclude]
     [JsonPropertyName("total_damage")]
-    public TotalStats TotalDamage { get; init; } = new() { Normal = 0, Critical = 0, Lucky = 0, CritLucky = 0, Total = 0 };
+    public TotalStats TotalDamage { get; init; } =
+        new() { Normal = 0, Critical = 0, Lucky = 0, CritLucky = 0, Total = 0 };
 
     [JsonInclude]
     [JsonPropertyName("total_dps")]
@@ -64,7 +65,8 @@ public record UserData
 
     [JsonInclude]
     [JsonPropertyName("total_healing")]
-    public TotalStats TotalHealing { get; init; } = new() { Normal = 0, Critical = 0, Lucky = 0, CritLucky = 0, Total = 0 };
+    public TotalStats TotalHealing { get; init; } =
+        new() { Normal = 0, Critical = 0, Lucky = 0, CritLucky = 0, Total = 0 };
 
     [JsonInclude]
     [JsonPropertyName("total_hps")]
@@ -211,4 +213,18 @@ public record SkillApiResponse
     [JsonInclude]
     [JsonPropertyName("data")]
     public SkillApiResponseData? Data { get; init; }
+}
+
+public record PlayerSnapshot
+{
+    [JsonInclude] public UserData UserData { get; init; } = new();
+
+    [JsonInclude] public SkillApiResponseData? SkillData { get; init; }
+}
+
+public record SnapshotData
+{
+    [JsonInclude] public int ElapsedSeconds { get; init; }
+
+    [JsonInclude] public List<PlayerSnapshot> Players { get; init; } = [];
 }

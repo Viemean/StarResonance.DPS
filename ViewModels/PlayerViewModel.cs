@@ -14,6 +14,8 @@ public partial class PlayerViewModel(
     LocalizationService localizationService,
     INotificationService notificationService) : ObservableObject
 {
+    public UserData? UserData { get; private set; }
+    public SkillApiResponseData? RawSkillData { get; set; }
     [ObservableProperty] private string? _damageDisplayPercentage;
     private UserData? _data;
     private string _fightDuration = "0:00";
@@ -188,6 +190,7 @@ public partial class PlayerViewModel(
 
     public void Update(UserData data, int rank, string fightDuration)
     {
+        UserData = data;
         _data = data;
         _fightDuration = fightDuration;
 
@@ -218,5 +221,24 @@ public partial class PlayerViewModel(
         OnPropertyChanged(nameof(TotalDpsTooltip));
         OnPropertyChanged(nameof(TotalHpsTooltip));
         OnPropertyChanged(nameof(TakenDamageTooltip));
+    }
+
+    public PlayerViewModel(PlayerSnapshot snapshot, string fightDuration, LocalizationService localizationService, INotificationService notificationService)
+        // 修正：从 SkillData 中安全地获取 Uid，如果不存在则默认为0
+        : this(snapshot.SkillData?.Uid ?? 0, localizationService, notificationService)
+    {
+        Update(snapshot.UserData, 0, fightDuration);
+        RawSkillData = snapshot.SkillData;
+        //直接访问 RawSkillData.Skills
+        if (RawSkillData?.Skills == null) return;
+        var playerTotalValue = TotalDamage + TotalHealing;
+        //直接访问 RawSkillData.Skills
+        var skills = RawSkillData.Skills.Values
+            .OrderByDescending(s => s.TotalDamage)
+            .Take(6)
+            .Select(s => new SkillViewModel(s, playerTotalValue));
+        foreach (var skillVm in skills) Skills.Add(skillVm);
+        // 直接访问 RawSkillData.Skills
+        CalculateAccurateCritDamage(RawSkillData.Skills);
     }
 }

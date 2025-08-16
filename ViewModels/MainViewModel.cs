@@ -39,6 +39,10 @@ public class AppState
 /// </summary>
 public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotificationService
 {
+    [ObservableProperty] private bool _isInSnapshotMode;
+
+    [ObservableProperty] private string _loadedSnapshotFileName = "";
+
     //闲置时长
     private const int IdleTimeoutSeconds = 30;
 
@@ -64,7 +68,16 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     private readonly Dictionary<string, PlayerViewModel> _playerCache = new();
     private readonly string _stateFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "dps_state.json");
     private readonly DispatcherTimer _stateSaveTimer;
+
     private readonly DispatcherTimer _uiUpdateTimer;
+
+    // 新增：缓存并重用 JsonSerializerOptions 实例以优化性能
+    private static readonly JsonSerializerOptions SnapshotSerializerOptions = new()
+    {
+        WriteIndented = true,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
+
     [ObservableProperty] private string _backendUrl = "ws://localhost:8989";
     [ObservableProperty] private Brush _connectionStatusColor = Brushes.Orange;
     [ObservableProperty] private string _connectionStatusText = "正在连接...";
@@ -464,23 +477,34 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     private async Task LoadSkillData(PlayerViewModel player)
     {
+        // 如果处于快照模式且已有技能数据，则不重新加载
+        if (IsInSnapshotMode && player.Skills.Any())
+        {
+            player.IsExpanded = true;
+            _expandedPlayer = player;
+            return;
+        }
+
         try
         {
             var skillDataResponse = await _apiService.GetSkillDataAsync(player.Uid);
             if (skillDataResponse?.Data?.Skills != null)
             {
+                // 存储原始技能数据以备快照
+                player.RawSkillData = skillDataResponse.Data;
+
                 var playerTotalValue = player.TotalDamage + player.TotalHealing;
                 var skills = skillDataResponse.Data.Skills.Values
                     .OrderByDescending(s => s.TotalDamage)
                     .Take(6)
                     .Select(s => new SkillViewModel(s, playerTotalValue));
+
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     player.Skills.Clear();
                     foreach (var skillVm in skills) player.Skills.Add(skillVm);
                 });
 
-                //调用重命名后的精确计算方法
                 player.CalculateAccurateCritDamage(skillDataResponse.Data.Skills);
             }
         }
@@ -488,6 +512,112 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         {
             Debug.WriteLine($"Failed to load skill data: {ex.Message}");
             ShowNotification("加载技能数据失败");
+        }
+    }
+
+    [RelayCommand]
+    private async Task SaveSnapshotAsync()
+    {
+        if (!Players.Any())
+        {
+            ShowNotification("没有数据可以保存");
+            return;
+        }
+
+        // 确保所有玩家的技能数据都已获取
+        foreach (var player in _playerCache.Values.Where(p => p.RawSkillData == null))
+        {
+            var skillData = await _apiService.GetSkillDataAsync(player.Uid);
+            if (skillData?.Data != null)
+            {
+                player.RawSkillData = skillData.Data;
+            }
+        }
+
+        var snapshot = new SnapshotData
+        {
+            ElapsedSeconds = _elapsedSeconds,
+            Players = _playerCache.Values.Select(p => new PlayerSnapshot
+            {
+                UserData = p.UserData!,
+                SkillData = p.RawSkillData
+            }).ToList()
+        };
+
+        try
+        {
+            var fileName = $"StarResonance.DPS-{DateTime.Now:yyyyMMdd_HHmmss}.json";
+            var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+
+            var json = JsonSerializer.Serialize(snapshot, SnapshotSerializerOptions);
+            
+            await File.WriteAllTextAsync(filePath, json, Encoding.UTF8);
+            ShowNotification($"快照已保存: {fileName}");
+        }
+        catch (Exception ex)
+        {
+            ShowNotification($"保存失败: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private async Task LoadSnapshotAsync()
+    {
+        var openFileDialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = "JSON Files (*.json)|*.json|All files (*.*)|*.*",
+            InitialDirectory = AppDomain.CurrentDomain.BaseDirectory
+        };
+
+        if (openFileDialog.ShowDialog() != true) return;
+
+        try
+        {
+            var json = await File.ReadAllTextAsync(openFileDialog.FileName);
+            var snapshot = JsonSerializer.Deserialize<SnapshotData>(json);
+
+            if (snapshot == null)
+            {
+                ShowNotification("无法解析快照文件");
+                return;
+            }
+
+            await _apiService.SetPauseStateAsync(true);
+            _apiService.DataReceived -= OnDataReceived;
+
+            _fightTimer.Stop();
+            _elapsedSeconds = snapshot.ElapsedSeconds;
+            var timeSpan = TimeSpan.FromSeconds(_elapsedSeconds);
+            FightDurationText =
+                timeSpan.TotalHours >= 1 ? timeSpan.ToString(@"h\:mm\:ss") : timeSpan.ToString(@"m\:ss");
+            _isFightActive = true;
+
+            Players.Clear();
+            _playerCache.Clear();
+
+            foreach (var playerSnapshot in snapshot.Players)
+            {
+                var playerVm = new PlayerViewModel(playerSnapshot, FightDurationText, Localization, this);
+                var key = playerVm.Uid.ToString();
+                _playerCache.Add(key, playerVm);
+                Players.Add(playerVm);
+            }
+
+            UpdatePlayerList();
+
+            var fileNameToShow = Path.GetFileName(openFileDialog.FileName);
+            if (fileNameToShow.StartsWith("StarResonance.DPS-"))
+            {
+                fileNameToShow = fileNameToShow["StarResonance.DPS-".Length..];
+            }
+
+            LoadedSnapshotFileName = fileNameToShow;
+            IsInSnapshotMode = true;
+            ShowNotification("快照加载成功");
+        }
+        catch (Exception ex)
+        {
+            ShowNotification($"加载失败: {ex.Message}");
         }
     }
 
@@ -761,6 +891,15 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [RelayCommand]
     public async Task ResetDataAsync()
     {
+        if (IsInSnapshotMode)
+        {
+            IsInSnapshotMode = false;
+            LoadedSnapshotFileName = "";
+            _apiService.DataReceived += OnDataReceived;
+            await ConnectToBackendAsync(); // 重新连接
+            return;
+        }
+
         _fightTimer.Stop();
         _elapsedSeconds = 0;
         FightDurationText = "0:00";
