@@ -27,7 +27,7 @@ public class AppState
     public string FontFamilySource { get; init; } = "Microsoft YaHei";
     public bool IsSmartIdleModeEnabled { get; init; }
     public string BackendUrl { get; init; } = "ws://localhost:8989";
-    public int UiUpdateInterval { get; init; } = 250;
+    public int UiUpdateInterval { get; init; } = 500;
     public string? CultureName { get; init; }
     public bool PauseOnExit { get; init; } = true;
     public bool PauseOnSnapshot { get; init; } = true;
@@ -75,6 +75,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     private readonly Dictionary<string, PlayerViewModel> _playerCache = new();
     private readonly string _stateFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "dps_state.json");
     private readonly DispatcherTimer _stateSaveTimer;
+
+    private readonly DispatcherTimer _proactiveDataFetchTimer; //用于主动获取数据的定时器
+    private readonly Dictionary<string, DateTime> _playerEntryTimes = new(); //追踪玩家首次出现的时间
+    private readonly DispatcherTimer _listRefreshTimer; //用于低频刷新整个列表排序和百分比的定时器
 
     private readonly DispatcherTimer _uiUpdateTimer;
 
@@ -144,7 +148,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [ObservableProperty] private string? _totalDpsSumTooltip;
     [ObservableProperty] private string? _totalHealingSumTooltip;
     [ObservableProperty] private string? _totalHpsSumTooltip;
-    [ObservableProperty] private int _uiUpdateInterval = 250;
+    [ObservableProperty] private int _uiUpdateInterval = 500;
 
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(FontOpacity))]
     private double _windowOpacity = 0.85;
@@ -195,6 +199,17 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         SortColumn = "TotalDps";
         _notificationTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _notificationTimer.Tick += (_, _) => IsNotificationVisible = false;
+
+        // 将定时器间隔从1秒延长到3秒，降低检查频率
+        _proactiveDataFetchTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _proactiveDataFetchTimer.Tick += ProactiveDataFetchTimer_Tick;
+        _proactiveDataFetchTimer.Start();
+
+        //初始化列表整体刷新定时器，每2秒执行一次
+        _listRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _listRefreshTimer.Tick += (_, _) => UpdatePlayerList();
+        _listRefreshTimer.Start();
+
         ConnectionStatusText = Localization["Connecting"] ?? "正在连接...";
         PauseButtonText = Localization["Pause"] ?? "暂停";
     }
@@ -214,7 +229,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         _apiService.OnConnected -= OnApiServiceConnected;
         _apiService.OnDisconnected -= OnApiServiceDisconnected;
         Localization.PropertyChanged -= _onLocalizationPropertyChanged;
-        Localization.PropertyChanged -= _onLocalizationPropertyChanged;
 
         _clockTimer.Stop();
         _uiUpdateTimer.Stop();
@@ -222,6 +236,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         _countdownTimer?.Stop();
         _notificationTimer.Stop();
         _stateSaveTimer.Stop();
+        _proactiveDataFetchTimer.Stop(); //停止新定时器
+        _listRefreshTimer.Stop(); // 停止列表刷新定时器
         SaveState();
         await _apiService.DisposeAsync();
         GC.SuppressFinalize(this);
@@ -518,33 +534,26 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         player.IsExpanded = true;
         _expandedPlayer = player;
 
-        // 仅当技能数据尚未加载时才发起网络请求
-        if (player.RawSkillData == null)
-        {
-            await LoadSkillData(player);
-        }
+        // 无论是主动获取的还是第一次展开，都强制刷新一次以获取最新数据
+        await FetchAndProcessSkillDataAsync(player);
     }
 
-    private async Task LoadSkillData(PlayerViewModel player)
+    private async Task FetchAndProcessSkillDataAsync(PlayerViewModel player)
     {
-        // 如果处于快照模式且已有技能数据，则不重新加载
-        if (IsInSnapshotMode && player.Skills.Any())
-        {
-            player.IsExpanded = true;
-            _expandedPlayer = player;
-            return;
-        }
+        // 如果处于快照模式，则不主动获取数据
+        if (IsInSnapshotMode) return;
 
         try
         {
-            // 增加一个正在加载的提示
-            player.SetLoadingSkills(true);
+            player.IsFetchingSkillData = true;
+            // 在UI线程上更新加载状态
+            await Application.Current.Dispatcher.InvokeAsync(() => player.SetLoadingSkills(true));
 
             var skillDataResponse = await _apiService.GetSkillDataAsync(player.Uid);
             if (skillDataResponse?.Data?.Skills != null)
             {
-                // 存储原始技能数据以备快照和缓存
                 player.RawSkillData = skillDataResponse.Data;
+                player.LastSkillDataFetchTime = DateTime.UtcNow;
 
                 var playerTotalValue = player.TotalDamage + player.TotalHealing;
                 var skills = skillDataResponse.Data.Skills.Values
@@ -552,7 +561,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                     .Take(6)
                     .Select(s => new SkillViewModel(s, playerTotalValue));
 
-                Application.Current.Dispatcher.Invoke(() =>
+                await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     player.Skills.Clear();
                     foreach (var skillVm in skills)
@@ -567,12 +576,12 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Failed to load skill data: {ex.Message}");
-            ShowNotification("加载技能数据失败");
+            Debug.WriteLine($"Failed to load skill data for {player.Name}: {ex.Message}");
         }
         finally
         {
-            player.SetLoadingSkills(false);
+            player.IsFetchingSkillData = false;
+            await Application.Current.Dispatcher.InvokeAsync(() => player.SetLoadingSkills(false));
         }
     }
 
@@ -693,45 +702,34 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         }
     }
 
-    private async void UiUpdateTimer_Tick(object? sender, EventArgs e)
+    private void UiUpdateTimer_Tick(object? sender, EventArgs e)
     {
-        ApiResponse? dataToProcess;
-        lock (_dataLock)
+        try
         {
-            dataToProcess = _latestReceivedData;
-            _latestReceivedData = null;
-        }
-
-        if (dataToProcess == null)
-        {
-            return;
-        }
-
-        // 将数据处理任务转移到后台线程
-        await Task.Run(async () =>
-        {
-            var hasChanged = ProcessDataChanges(dataToProcess);
-
-            if (hasChanged)
+            ApiResponse? dataToProcess;
+            lock (_dataLock)
             {
-                _lastCombatActivityTime = DateTime.UtcNow;
-                if (!_isFightActive && !IsPaused)
+                dataToProcess = _latestReceivedData;
+                _latestReceivedData = null;
+            }
+
+            if (dataToProcess != null)
+            {
+                var listChanged = ProcessDataChanges(dataToProcess);
+                // 仅当有玩家“唤醒”或列表结构发生变化时，才立即刷新列表
+                if (listChanged)
                 {
-                    _isFightActive = true;
-                    // 在UI线程上启动计时器
-                    await Application.Current.Dispatcher.InvokeAsync(() => _fightTimer.Start());
+                    UpdatePlayerList();
                 }
             }
 
-            // 处理主玩家列表数据
-            await ProcessData(dataToProcess);
-
-            // 如果有玩家的详情处于展开状态，则刷新其技能数据
-            if (_expandedPlayer is { IsExpanded: true })
-            {
-                await LoadSkillData(_expandedPlayer);
-            }
-        });
+            // 无论有无新数据，都执行一次闲置状态检查
+            CheckForIdlePlayers();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"An error occurred in UiUpdateTimer_Tick: {ex.Message}");
+        }
     }
 
     public async Task InitializeAsync()
@@ -760,8 +758,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     {
         try
         {
-            if (data.User == null) return;
-
             // 战斗首次启动逻辑
             if (!_isFightActive && !IsPaused)
                 if (data.User.Values.Any(u => u.TotalDamage.Total > 0 || u.TotalHealing.Total > 0))
@@ -772,15 +768,15 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                     await Application.Current.Dispatcher.InvokeAsync(() => _fightTimer.Start());
                 }
 
-            // --- UI 更新现在可以直接在后台线程中进行 ---
             var activeKeys = new HashSet<string>(data.User.Keys);
 
-            // ToList() 创建一个副本，避免在遍历时修改集合
+            // 处理离开的玩家
             foreach (var existingKey in _playerCache.Keys.Except(activeKeys).ToList())
             {
                 if (!_playerCache.TryGetValue(existingKey, out var playerToRemove)) continue;
                 Players.Remove(playerToRemove);
                 _playerCache.Remove(existingKey);
+                _playerEntryTimes.Remove(existingKey); // 新增：移除玩家的进入时间记录
             }
 
             // 添加或更新玩家数据
@@ -792,6 +788,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                     playerVm = new PlayerViewModel(uid, Localization, this);
                     _playerCache.Add(key, playerVm);
                     Players.Add(playerVm);
+                    _playerEntryTimes.Add(key, DateTime.UtcNow); // 新增：记录新玩家的进入时间
                 }
 
                 // 更新闲置模式所需的时间戳
@@ -815,37 +812,79 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         }
     }
 
-    private bool ProcessDataChanges(ApiResponse dataToProcess)
+    private bool ProcessDataChanges(ApiResponse data)
     {
-        if (dataToProcess.User is not { Count: > 0 })
-        {
-            return false;
-        }
+        var listStructureChanged = false;
+        var aPlayerWokeUp = false;
 
-        if (dataToProcess.User.Count != _playerCache.Count)
-        {
-            return true;
-        }
+        var activeKeys = new HashSet<string>(data.User.Keys);
 
-        foreach (var (key, newUserData) in dataToProcess.User)
+        // 处理离开的玩家
+        var removedKeys = _playerCache.Keys.Except(activeKeys).ToList();
+        if (removedKeys.Count > 0)
         {
-            if (_playerCache.TryGetValue(key, out var playerVm))
+            listStructureChanged = true;
+            foreach (var key in removedKeys)
             {
-                if (Math.Abs(playerVm.TotalDamage - newUserData.TotalDamage.Total) > 1E-6 ||
-                    Math.Abs(playerVm.TotalHealing - newUserData.TotalHealing.Total) > 1E-6 ||
-                    Math.Abs(playerVm.TakenDamage - newUserData.TakenDamage) > 1E-6)
+                if (_playerCache.TryGetValue(key, out var playerToRemove))
                 {
-                    return true;
+                    Players.Remove(playerToRemove);
+                    _playerCache.Remove(key);
+                    _playerEntryTimes.Remove(key);
                 }
             }
-            else if (newUserData.TotalDamage.Total > 0 || newUserData.TotalHealing.Total > 0 ||
-                     newUserData.TakenDamage > 0)
-            {
-                return true;
-            }
         }
 
-        return false;
+        // 添加或更新玩家数据
+        foreach (var (key, userData) in data.User)
+        {
+            long.TryParse(key, out var uid);
+
+            // 使用 if-else 结构明确 playerVm 的作用域
+            if (!_playerCache.TryGetValue(key, out var playerVm))
+            {
+                // Case 1: 新玩家
+                listStructureChanged = true;
+                playerVm = new PlayerViewModel(uid, Localization, this);
+                _playerCache.Add(key, playerVm);
+                Players.Add(playerVm);
+                _playerEntryTimes.Add(key, DateTime.UtcNow);
+
+                // 新玩家的数据肯定有变化，直接更新活跃时间
+                playerVm.LastActiveTime = DateTime.UtcNow;
+
+                // 新玩家的 IsIdle 默认为 false，无需检查唤醒
+            }
+            else
+            {
+                // Case 2: 已有玩家
+                // 检查数据是否有实际变化
+                if (Math.Abs(playerVm.TotalDamage - userData.TotalDamage.Total) > 1E-6 ||
+                    Math.Abs(playerVm.TotalHealing - userData.TotalHealing.Total) > 1E-6 ||
+                    Math.Abs(playerVm.TakenDamage - userData.TakenDamage) > 1E-6)
+                {
+                    playerVm.LastActiveTime = DateTime.UtcNow;
+
+                    // 检查玩家是否从闲置状态被唤醒
+                    if (playerVm.IsIdle)
+                    {
+                        playerVm.IsIdle = false;
+                        aPlayerWokeUp = true; // 标记需要立即重排
+                    }
+                }
+            }
+
+            // 在这里，无论是新玩家还是旧玩家，playerVm 都绝对不为 null
+            playerVm.Update(userData, playerVm.Rank, FightDurationText);
+        }
+
+        if (listStructureChanged)
+        {
+            OnPropertyChanged(nameof(PlayerCount));
+        }
+
+        // 如果有玩家被唤醒或列表结构变化，返回true以触发立即刷新
+        return aPlayerWokeUp || listStructureChanged;
     }
 
     /// <summary>
@@ -1145,5 +1184,65 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         public const string TotalDps = nameof(PlayerViewModel.TotalDps);
         public const string TotalHps = nameof(PlayerViewModel.TotalHps);
         public const string TakenDamage = nameof(PlayerViewModel.TakenDamage);
+    }
+
+    /// <summary>
+    /// 定时检查并主动获取玩家的详细数据。
+    /// </summary>
+    private async void ProactiveDataFetchTimer_Tick(object? sender, EventArgs e)
+    {
+        try
+        {
+            // 创建一个副本进行遍历，避免在循环中修改集合
+            var playersToProcess = _playerCache.Values.ToList();
+
+            foreach (var player in playersToProcess)
+            {
+                // 如果玩家处于闲置、已被手动展开过或正在获取数据，则跳过
+                if (player.IsIdle || player.HasBeenExpanded || player.IsFetchingSkillData)
+                {
+                    continue;
+                }
+
+                var now = DateTime.UtcNow;
+
+                // 策略1：初次获取 (新玩家进入列表3秒后)
+                if (player.RawSkillData == null)
+                {
+                    if (_playerEntryTimes.TryGetValue(player.Uid.ToString(), out var entryTime) &&
+                        (now - entryTime) > TimeSpan.FromSeconds(3))
+                    {
+                        await FetchAndProcessSkillDataAsync(player);
+                    }
+                }
+                // 策略2：周期性刷新 (距离上次获取超过1分钟)
+                else if ((now - player.LastSkillDataFetchTime) > TimeSpan.FromMinutes(1))
+                {
+                    await FetchAndProcessSkillDataAsync(player);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"An error occurred in ProactiveDataFetchTimer_Tick: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 检查所有玩家，将长时间无数据变化的玩家标记为闲置。
+    /// </summary>
+    private void CheckForIdlePlayers()
+    {
+        var now = DateTime.UtcNow;
+        foreach (var player in _playerCache.Values)
+        {
+            // 如果玩家当前不闲置，但上次活跃时间已经超过阈值，则将其设为闲置
+            if (player.IsIdle || !((now - player.LastActiveTime).TotalSeconds > IdleTimeoutSeconds)) continue;
+            player.IsIdle = true;
+            // 将闲置玩家的百分比清空
+            player.DamageDisplayPercentage = null;
+            player.HealingDisplayPercentage = null;
+            player.TakenDamageDisplayPercentage = null;
+        }
     }
 }

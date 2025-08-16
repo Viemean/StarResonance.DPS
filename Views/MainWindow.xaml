@@ -292,7 +292,7 @@
 
                         <ListView.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <VirtualizingStackPanel />
+                                <VirtualizingStackPanel VirtualizingStackPanel.CacheLength="4,4" />
                             </ItemsPanelTemplate>
                         </ListView.ItemsPanel>
 
@@ -428,9 +428,9 @@
                                 <StackPanel Grid.Column="1" Margin="0,0,10,0">
                                     <TextBlock Text="{Binding Localization[UIRefreshInterval]}" Foreground="White" />
                                     <ComboBox SelectedItem="{Binding UiUpdateInterval}">
-                                        <sys:Int32>100</sys:Int32>
                                         <sys:Int32>250</sys:Int32>
                                         <sys:Int32>500</sys:Int32>
+                                        <sys:Int32>1000</sys:Int32>
                                     </ComboBox>
                                 </StackPanel>
 

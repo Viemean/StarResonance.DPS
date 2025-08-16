@@ -40,6 +40,21 @@ public partial class PlayerViewModel(
     [ObservableProperty] private double _totalHealing;
     [ObservableProperty] private double _totalHps;
 
+    /// <summary>
+    ///     用于追踪此玩家的技能/属性数据上次成功获取的时间。
+    /// </summary>
+    public DateTime LastSkillDataFetchTime { get; set; } = DateTime.MinValue;
+
+    /// <summary>
+    ///     标记用户是否曾手动展开过此玩家的详情。一旦展开，将停止主动刷新。
+    /// </summary>
+    public bool HasBeenExpanded { get; set; }
+
+    /// <summary>
+    ///     一个锁标志，防止对同一个玩家同时发起多个数据请求。
+    /// </summary>
+    public bool IsFetchingSkillData { get; set; }
+
     public PlayerViewModel(PlayerSnapshot snapshot, string fightDuration, LocalizationService localizationService,
             INotificationService notificationService)
         // 修正：从 SkillData 中安全地获取 Uid，如果不存在则默认为0
@@ -70,6 +85,13 @@ public partial class PlayerViewModel(
         set
         {
             if (!SetProperty(ref _isExpanded, value)) return;
+
+            // 当玩家详情被展开时，设置标志，停止后续的自动刷新
+            if (value)
+            {
+                HasBeenExpanded = true;
+            }
+
             OnPropertyChanged(nameof(ExpandedVisibility)); // 通知UI更新
             // 当 IsExpanded 被设置为折叠时清空技能和分析数据
             if (value) return;
