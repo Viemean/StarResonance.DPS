@@ -186,4 +186,16 @@
   <data name="Error_InvalidCountdownMinutes" xml:space="preserve">
     <value>请输入一个有效的分钟数 (1-60)</value>
   </data>
+  <data name="Tooltip_CharacterLevel" xml:space="preserve">
+    <value>角色等级:</value>
+  </data>
+  <data name="Tooltip_RankLevel" xml:space="preserve">
+    <value>臂章等级:</value>
+  </data>
+  <data name="Tooltip_MaxHP" xml:space="preserve">
+    <value>最大生命值:</value>
+  </data>
+  <data name="Unknown" xml:space="preserve">
+    <value>未知</value>
+  </data>
 </root>

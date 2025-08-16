@@ -186,4 +186,16 @@
   <data name="Error_InvalidCountdownMinutes" xml:space="preserve">
     <value>有効な分数（1～60）を入力してください</value>
   </data>
+  <data name="Tooltip_CharacterLevel" xml:space="preserve">
+    <value>キャラクターレベル:</value>
+  </data>
+  <data name="Tooltip_RankLevel" xml:space="preserve">
+    <value>腕章レベル:</value>
+  </data>
+  <data name="Tooltip_MaxHP" xml:space="preserve">
+    <value>最大HP:</value>
+  </data>
+  <data name="Unknown" xml:space="preserve">
+    <value>不明</value>
+  </data>
 </root>

@@ -187,4 +187,16 @@
   <data name="Error_InvalidCountdownMinutes" xml:space="preserve">
     <value>Please enter a valid number of minutes (1-60)</value>
   </data>
+  <data name="Tooltip_CharacterLevel" xml:space="preserve">
+    <value>Level:</value>
+  </data>
+  <data name="Tooltip_RankLevel" xml:space="preserve">
+    <value>Rank Level:</value>
+  </data>
+  <data name="Tooltip_MaxHP" xml:space="preserve">
+    <value>Max HP:</value>
+  </data>
+  <data name="Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
 </root>

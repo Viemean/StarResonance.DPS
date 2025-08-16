@@ -17,11 +17,9 @@ public partial class PlayerViewModel(
     [ObservableProperty] private string? _accurateCritDamageText;
     [ObservableProperty] private string? _accurateCritHealingText;
     [ObservableProperty] private string? _damageDisplayPercentage;
-    [ObservableProperty] 
-    private string? _dpsDisplayPercentage;
+    [ObservableProperty] private string? _dpsDisplayPercentage;
 
-    [ObservableProperty] 
-    private string? _hpsDisplayPercentage;
+    [ObservableProperty] private string? _hpsDisplayPercentage;
     private UserData? _data;
     private string _fightDuration = "0:00";
 
@@ -142,43 +140,34 @@ public partial class PlayerViewModel(
         {
             if (_data == null) return string.Empty;
 
-            var critRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Critical / _data.TotalCount.Total : 0;
-            var luckyRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Lucky / _data.TotalCount.Total : 0;
-
             var sb = new StringBuilder();
+            var unknownText = localizationService["Unknown"] ?? "未知";
+
+            // 基础信息
             sb.AppendLine($"{localizationService["Tooltip_PlayerId"] ?? "角色ID: "}{Uid}");
             sb.AppendLine($"{localizationService["Tooltip_PlayerName"] ?? "角色昵称: "}{Name}");
 
-            // 优化：逐个检查属性，仅当存在且值有效时才显示
-            if (RawSkillData?.Attr is { } attr)
-            {
-                if (attr.Level > 0)
-                {
-                    // 如果臂章等级也存在，则合并显示在一行
-                    if (attr.RankLevel > 0)
-                    {
-                        sb.AppendLine($"等级: {attr.Level} (臂章: {attr.RankLevel})");
-                    }
-                    else
-                    {
-                        sb.AppendLine($"等级: {attr.Level}");
-                    }
-                }
-                // 处理只存在臂章等级的罕见情况
-                else if (attr.RankLevel > 0)
-                {
-                    sb.AppendLine($"臂章: {attr.RankLevel}");
-                }
+            //静态显示角色等级、臂章等级和最大生命值
+            var attr = RawSkillData?.Attr;
 
-                if (attr.MaxHp > 0)
-                {
-                    sb.AppendLine($"最大生命值: {attr.MaxHp:N0}");
-                }
-            }
+            var levelText = attr is { Level: > 0 } ? attr.Level.ToString() : unknownText;
+            sb.AppendLine($"{(localizationService["Tooltip_CharacterLevel"] ?? "角色等级:").TrimEnd(':')} {levelText}");
 
+            var rankLevelText = attr is { RankLevel: > 0 } ? attr.RankLevel.ToString() : unknownText;
+            sb.AppendLine($"{(localizationService["Tooltip_RankLevel"] ?? "臂章等级:").TrimEnd(':')} {rankLevelText}");
+
+            var maxHpText = attr is { MaxHp: > 0 } ? attr.MaxHp.ToString("N0") : unknownText;
+            sb.AppendLine($"{(localizationService["Tooltip_MaxHP"] ?? "最大生命值:").TrimEnd(':')} {maxHpText}");
+
+            // 评分和职业
             sb.AppendLine($"{localizationService["Tooltip_Score"] ?? "评分: "}{FightPoint}");
             sb.AppendLine($"{localizationService["Tooltip_Profession"] ?? "职业: "}{Profession}");
+
+            // 暴击率和幸运率
+            var critRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Critical / _data.TotalCount.Total : 0;
             sb.AppendLine($"{localizationService["Tooltip_CritRate"] ?? "暴击率: "}{critRate:P1}");
+
+            var luckyRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Lucky / _data.TotalCount.Total : 0;
             sb.AppendLine($"{localizationService["Tooltip_LuckyRate"] ?? "幸运率: "}{luckyRate:P1}");
 
             return sb.ToString().TrimEnd();
@@ -379,7 +368,7 @@ public partial class PlayerViewModel(
             // 仅在必要时才通知UI更新Tooltip
             OnPropertyChanged(nameof(ToolTipText));
         }
-        
+
         OnComputedPropertiesChanged();
     }
 
