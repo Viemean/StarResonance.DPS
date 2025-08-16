@@ -8,7 +8,6 @@
         xmlns:viewModels="clr-namespace:StarResonance.DPS.ViewModels"
         xmlns:tb="http://www.hardcodet.net/taskbar"
         xmlns:views="clr-namespace:StarResonance.DPS.Views"
-        xmlns:behaviors="clr-namespace:StarResonance.DPS.Behaviors"
         xmlns:converters="clr-namespace:StarResonance.DPS.Converters"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=viewModels:MainViewModel, IsDesignTimeCreatable=True}"
@@ -317,12 +316,11 @@
 
                     <ListView Grid.Row="1" ItemsSource="{Binding Players}" Background="Transparent" BorderThickness="0"
                               HorizontalContentAlignment="Stretch" Margin="5,0,0,0"
-                              ScrollViewer.CanContentScroll="True"
+                              ScrollViewer.CanContentScroll="False"
                               VirtualizingStackPanel.IsVirtualizing="True"
                               VirtualizingStackPanel.VirtualizationMode="Recycling"
                               ScrollViewer.VerticalScrollBarVisibility="Auto"
-                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                              behaviors:SmoothScrollViewerBehavior.IsEnabled="True">
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
 
                         <ListView.ItemsPanel>
                             <ItemsPanelTemplate>
