@@ -73,6 +73,7 @@ public partial class PlayerViewModel(
         foreach (var skillVm in skills) Skills.Add(skillVm);
         // 直接访问 RawSkillData.Skills
         CalculateAccurateCritDamage(RawSkillData.Skills);
+        CalculateAccurateCritHealing(RawSkillData.Skills);
     }
 
     public UserData? UserData { get; private set; }
@@ -180,20 +181,6 @@ public partial class PlayerViewModel(
             sb.AppendLine($"{localizationService["Tooltip_CritRate"] ?? "暴击率: "}{critRate:P1}");
             sb.AppendLine($"{localizationService["Tooltip_LuckyRate"] ?? "幸运率: "}{luckyRate:P1}");
 
-            var notApplicableText = localizationService["NotApplicable"] ?? "数据不足";
-            if (!string.IsNullOrEmpty(AccurateCritDamageText) && AccurateCritDamageText != notApplicableText)
-            {
-                sb.AppendLine(
-                    $"{(localizationService["AccurateCritDamageLabel"] ?? "暴伤加成 (分析值): ").TrimEnd(':', ' ')}: {AccurateCritDamageText}");
-            }
-
-            if (!string.IsNullOrEmpty(AccurateCritHealingText) && AccurateCritHealingText != notApplicableText)
-            {
-                sb.AppendLine(
-                    $"{(localizationService["AccurateCritHealingLabel"] ?? "暴疗加成 (分析值): ").TrimEnd(':', ' ')}: {AccurateCritHealingText}");
-            }
-
-
             return sb.ToString().TrimEnd();
         }
     }
@@ -207,6 +194,8 @@ public partial class PlayerViewModel(
             return parts.Length > 1 ? parts[1] : parts[0];
         }
     }
+
+    public void NotifyTooltipUpdate() => OnPropertyChanged(nameof(ToolTipText));
 
     public string CopyableString
     {
@@ -359,6 +348,12 @@ public partial class PlayerViewModel(
 
     public void Update(UserData data, int rank, string fightDuration)
     {
+        // 在更新前保存与Tooltip相关的旧数据以供比较
+        var oldName = Name;
+        var oldProfession = Profession;
+        var oldFightPoint = FightPoint;
+        var oldTotalCount = UserData?.TotalCount;
+
         UserData = data;
         _data = data;
         _fightDuration = fightDuration;
@@ -373,12 +368,23 @@ public partial class PlayerViewModel(
         TotalHps = data.TotalHps;
         TakenDamage = data.TakenDamage;
 
+        // 检查Tooltip依赖的数据是否真的发生了变化
+        if (oldName != Name ||
+            oldProfession != Profession ||
+            oldFightPoint != FightPoint ||
+            oldTotalCount?.Total != data.TotalCount.Total ||
+            oldTotalCount?.Critical != data.TotalCount.Critical ||
+            oldTotalCount?.Lucky != data.TotalCount.Lucky)
+        {
+            // 仅在必要时才通知UI更新Tooltip
+            OnPropertyChanged(nameof(ToolTipText));
+        }
+        
         OnComputedPropertiesChanged();
     }
 
     private void OnComputedPropertiesChanged()
     {
-        OnPropertyChanged(nameof(ToolTipText));
         OnPropertyChanged(nameof(CopyableString));
         OnPropertyChanged(nameof(TotalDamageText));
         OnPropertyChanged(nameof(TotalHealingText));

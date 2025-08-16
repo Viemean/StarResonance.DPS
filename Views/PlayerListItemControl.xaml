@@ -36,23 +36,43 @@
             <Border Padding="0,5" ToolTipService.InitialShowDelay="500">
                 <views:DynamicGrid ColumnDefinitionsSource="{StaticResource SharedGridColumnDefinitions}">
                     <Button Grid.Column="0"
-                            Content="{Binding Rank}"
                             Command="{Binding CopyDataCommand}"
                             ToolTip="{Binding DataContext.Localization[ClickToCopy], ElementName=RootWindow}"
                             Style="{StaticResource TransparentButtonStyle}"
                             FontWeight="Bold"
                             HorizontalAlignment="Center"
-                            VerticalAlignment="Center" />
+                            VerticalAlignment="Center">
+                        <Viewbox StretchDirection="DownOnly">
+                            <TextBlock Text="{Binding Rank}" />
+                        </Viewbox>
+                    </Button>
 
                     <TextBlock Grid.Column="1" Text="{Binding DisplayName, Mode=OneWay}"
                                Style="{StaticResource DataCell}"
                                Foreground="{Binding NameColor, Mode=OneWay}" Margin="5,0,0,0"
-                               TextTrimming="CharacterEllipsis"
-                               ToolTip="{Binding ToolTipText, Mode=OneWay}" />
+                               TextTrimming="CharacterEllipsis">
+                        <TextBlock.ToolTip>
+                            <ToolTip>
+                                <TextBlock Text="{Binding ToolTipText, Mode=OneWay}" />
+                            </ToolTip>
+                        </TextBlock.ToolTip>
+                    </TextBlock>
                     <TextBlock Grid.Column="2" Text="{Binding FightPoint}" Style="{StaticResource DataCell}"
-                               Foreground="Gold" ToolTip="{Binding ToolTipText}" />
+                               Foreground="Gold">
+                        <TextBlock.ToolTip>
+                            <ToolTip>
+                                <TextBlock Text="{Binding ToolTipText}" />
+                            </ToolTip>
+                        </TextBlock.ToolTip>
+                    </TextBlock>
                     <TextBlock Grid.Column="3" Text="{Binding DisplayProfession}" Style="{StaticResource DataCell}"
-                               Foreground="White" TextTrimming="CharacterEllipsis" ToolTip="{Binding ToolTipText}" />
+                               Foreground="White" TextTrimming="CharacterEllipsis">
+                        <TextBlock.ToolTip>
+                            <ToolTip>
+                                <TextBlock Text="{Binding ToolTipText}" />
+                            </ToolTip>
+                        </TextBlock.ToolTip>
+                    </TextBlock>
 
                     <TextBlock Grid.Column="4" Style="{StaticResource DataCell}" ToolTip="{Binding TotalDamageTooltip}">
                         <Run Text="{Binding TotalDamageText, Mode=OneWay}" Foreground="OrangeRed" />
