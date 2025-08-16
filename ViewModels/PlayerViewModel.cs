@@ -8,6 +8,7 @@ using StarResonance.DPS.Models;
 using StarResonance.DPS.Services;
 
 namespace StarResonance.DPS.ViewModels;
+
 /// <summary>
 /// 表示单个玩家数据及其在UI中状态的视图模型。
 /// </summary>
@@ -221,94 +222,61 @@ public partial class PlayerViewModel(
         }
     }
 
-    public void CalculateAccurateCritDamage(IReadOnlyDictionary<string, SkillData> skillsData)
+    /// <summary>
+    /// 计算并返回指定类型技能的精确暴击/暴疗加成百分比文本。
+    /// </summary>
+    /// <param name="skillType">要计算的技能类型 ("伤害" 或 "治疗")。</param>
+    /// <returns>格式化为百分比的加成字符串，或在数据不足时返回"不适用"。</returns>
+    private string CalculateAccurateCritBonus(string skillType)
     {
         const int minSamples = 2;
         var multipliers = new List<(double multiplier, double weight)>();
 
-        // 筛选出同时具有普通和暴击记录的、可供分析的有效伤害技能
-        var validSkills = skillsData.Values.Where(s =>
-            s is { Type: "伤害", CountBreakdown: { Normal: >= minSamples, Critical: >= minSamples } }).ToList();
+        // 根据传入的skillType筛选出同时具有普通和暴击记录的有效技能
+        var validSkills = RawSkillData?.Skills.Values.Where(s =>
+            s is { Type: var type, CountBreakdown: { Normal: >= minSamples, Critical: >= minSamples } } &&
+            type == skillType).ToList();
 
-        foreach (var skill in validSkills)
+        if (validSkills != null)
         {
-            var avgNormal = skill.DamageBreakdown.Normal / skill.CountBreakdown.Normal;
-            if (avgNormal <= 0) continue; // 避免除以零
-
-            var totalCritDamage = skill.DamageBreakdown.Critical + skill.DamageBreakdown.CritLucky;
-            var avgCrit = totalCritDamage / skill.CountBreakdown.Critical;
-
-            // 记录每个技能的暴击倍率及其权重（权重为该技能的总伤害）
-            multipliers.Add((avgCrit / avgNormal, skill.TotalDamage));
+            multipliers.AddRange(from skill in validSkills
+                let avgNormal = skill.DamageBreakdown.Normal / skill.CountBreakdown.Normal
+                where !(avgNormal <= 0)
+                let totalCritValue = skill.DamageBreakdown.Critical + skill.DamageBreakdown.CritLucky
+                let avgCrit = totalCritValue / skill.CountBreakdown.Critical
+                select (avgCrit / avgNormal, skill.TotalDamage));
         }
 
         // 基于所有有效技能的数据，进行加权平均计算
-        if (multipliers.Count != 0)
+        if (multipliers.Count == 0) return localizationService["NotApplicable"] ?? "数据不足";
+        var totalWeight = multipliers.Sum(t => t.weight);
+        if (!(totalWeight > 0)) return localizationService["NotApplicable"] ?? "数据不足";
         {
-            var totalWeight = multipliers.Sum(t => t.weight);
-            if (totalWeight > 0)
-            {
-                var totalWeightedMultiplier = multipliers.Sum(t => t.multiplier * t.weight);
-                var weightedAvgMultiplier = totalWeightedMultiplier / totalWeight;
-                var bonus = weightedAvgMultiplier - 1;
-                AccurateCritDamageText = $"{bonus:P1}";
-            }
-            else
-            {
-                AccurateCritDamageText = localizationService["NotApplicable"] ?? "数据不足";
-            }
+            var totalWeightedMultiplier = multipliers.Sum(t => t.multiplier * t.weight);
+            var weightedAvgMultiplier = totalWeightedMultiplier / totalWeight;
+            var bonus = weightedAvgMultiplier - 1;
+            return $"{bonus:P1}";
         }
-        else
-        {
-            AccurateCritDamageText = localizationService["NotApplicable"] ?? "数据不足";
-        }
+    }
 
+    /// <summary>
+    /// 计算精确的暴击伤害加成。
+    /// </summary>
+    /// <param name="skillsData">用于计算的技能数据字典。</param>
+    public void CalculateAccurateCritDamage(IReadOnlyDictionary<string, SkillData> skillsData)
+    {
+        AccurateCritDamageText = CalculateAccurateCritBonus("伤害");
         OnPropertyChanged(nameof(CritDamageVisibility));
         OnPropertyChanged(nameof(ToolTipText));
     }
 
+    /// <summary>
+    /// 计算精确的暴击治疗加成。
+    /// </summary>
+    /// <param name="skillsData">用于计算的技能数据字典。</param>
     public void CalculateAccurateCritHealing(IReadOnlyDictionary<string, SkillData> skillsData)
     {
-        const int minSamples = 2;
-        var multipliers = new List<(double multiplier, double weight)>();
-
-        // 筛选出同时具有普通和暴击记录的、可供分析的有效治疗技能
-        var validSkills = skillsData.Values.Where(s =>
-            s is { Type: "治疗", CountBreakdown: { Normal: >= minSamples, Critical: >= minSamples } }).ToList();
-
-        foreach (var skill in validSkills)
-        {
-            var avgNormal = skill.DamageBreakdown.Normal / skill.CountBreakdown.Normal;
-            if (avgNormal <= 0) continue; // 避免除以零
-
-            var totalCritHealing = skill.DamageBreakdown.Critical + skill.DamageBreakdown.CritLucky;
-            var avgCrit = totalCritHealing / skill.CountBreakdown.Critical;
-
-            // 记录每个技能的暴疗倍率及其权重（权重为该技能的总治疗量）
-            multipliers.Add((avgCrit / avgNormal, skill.TotalDamage));
-        }
-
-        // 基于所有有效技能的数据，进行加权平均计算
-        if (multipliers.Count != 0)
-        {
-            var totalWeight = multipliers.Sum(t => t.weight);
-            if (totalWeight > 0)
-            {
-                var totalWeightedMultiplier = multipliers.Sum(t => t.multiplier * t.weight);
-                var weightedAvgMultiplier = totalWeightedMultiplier / totalWeight;
-                var bonus = weightedAvgMultiplier - 1;
-                AccurateCritHealingText = $"{bonus:P1}";
-            }
-            else
-            {
-                AccurateCritHealingText = localizationService["NotApplicable"] ?? "数据不足";
-            }
-        }
-        else
-        {
-            AccurateCritHealingText = localizationService["NotApplicable"] ?? "数据不足";
-        }
-
+        AccurateCritHealingText = CalculateAccurateCritBonus("治疗");
         OnPropertyChanged(nameof(CritHealingVisibility));
         OnPropertyChanged(nameof(ToolTipText));
     }
@@ -336,7 +304,6 @@ public partial class PlayerViewModel(
 
     public void Update(UserData data, int rank, string fightDuration)
     {
-        // 在更新前保存与Tooltip相关的旧数据以供比较
         var oldName = Name;
         var oldProfession = Profession;
         var oldFightPoint = FightPoint;
@@ -355,16 +322,12 @@ public partial class PlayerViewModel(
         TotalDps = data.TotalDps;
         TotalHps = data.TotalHps;
         TakenDamage = data.TakenDamage;
-
-        // 检查Tooltip依赖的数据是否真的发生了变化
+        
         if (oldName != Name ||
             oldProfession != Profession ||
             oldFightPoint != FightPoint ||
-            oldTotalCount?.Total != data.TotalCount.Total ||
-            oldTotalCount?.Critical != data.TotalCount.Critical ||
-            oldTotalCount?.Lucky != data.TotalCount.Lucky)
+            oldTotalCount != data.TotalCount)
         {
-            // 仅在必要时才通知UI更新Tooltip
             OnPropertyChanged(nameof(ToolTipText));
         }
 
