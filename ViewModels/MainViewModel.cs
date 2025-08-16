@@ -51,18 +51,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     //闲置时长
     private const int IdleTimeoutSeconds = 30;
 
-    private static readonly Dictionary<string, Func<PlayerViewModel, IComparable>> Sorters = new()
-    {
-        [SortableColumns.Name] = p => p.DisplayName,
-        [SortableColumns.FightPoint] = p => p.FightPoint,
-        [SortableColumns.Profession] = p => p.Profession,
-        [SortableColumns.TotalDamage] = p => p.TotalDamage,
-        [SortableColumns.TotalHealing] = p => p.TotalHealing,
-        [SortableColumns.TotalDps] = p => p.TotalDps,
-        [SortableColumns.TotalHps] = p => p.TotalHps,
-        [SortableColumns.TakenDamage] = p => p.TakenDamage
-    };
-
     // 新增：缓存并重用 JsonSerializerOptions 实例以优化性能
     private static readonly JsonSerializerOptions SnapshotSerializerOptions = new()
     {
@@ -660,7 +648,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             ShowNotification($"保存失败: {ex.Message}");
         }
     }
-
+    
     [RelayCommand]
     private async Task LoadSnapshotAsync()
     {
@@ -708,6 +696,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             }
 
             UpdatePlayerList();
+
+            // 新增：手动通知UI更新PlayerCount属性
+            OnPropertyChanged(nameof(PlayerCount));
 
             var fileNameToShow = Path.GetFileName(openFileDialog.FileName);
             if (fileNameToShow.StartsWith("StarResonance.DPS-"))
@@ -925,88 +916,90 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     ///     根据当前排序设置，对玩家列表进行排序、计算百分比并更新UI。
     ///     同时处理闲置玩家的逻辑。
     /// </summary>
-private void UpdatePlayerList()
-{
-    // 步骤 1: 计算百分比 (逻辑不变)
-    var playersForCalcs = IsSmartIdleModeEnabled
-        ? Players.Where(p => !p.IsIdle).ToList()
-        : Players.ToList();
-    if (playersForCalcs.Count == 0)
+    private void UpdatePlayerList()
     {
-        foreach (var p in Players)
+        // 步骤 1: 计算百分比 (逻辑不变)
+        var playersForCalcs = IsSmartIdleModeEnabled
+            ? Players.Where(p => !p.IsIdle).ToList()
+            : Players.ToList();
+        if (playersForCalcs.Count == 0)
         {
-            p.DamageDisplayPercentage = null;
-            p.HealingDisplayPercentage = null;
-            p.TakenDamageDisplayPercentage = null;
+            foreach (var p in Players)
+            {
+                p.DamageDisplayPercentage = null;
+                p.HealingDisplayPercentage = null;
+                p.TakenDamageDisplayPercentage = null;
+            }
+
+            UpdateColumnTotals();
+            return;
         }
+
+        var totalDamage = playersForCalcs.Sum(p => p.TotalDamage);
+        var totalHealing = playersForCalcs.Sum(p => p.TotalHealing);
+        var totalTakenDamage = playersForCalcs.Sum(p => p.TakenDamage);
+        var showDamagePercent = SortColumn is "TotalDamage" or "TotalDps";
+        var showHealingPercent = SortColumn is "TotalHealing" or "TotalHps";
+
+        foreach (var player in Players)
+        {
+            if (IsSmartIdleModeEnabled && player.IsIdle)
+            {
+                player.DamageDisplayPercentage = null;
+                player.HealingDisplayPercentage = null;
+                player.TakenDamageDisplayPercentage = null;
+                continue;
+            }
+
+            // ... (百分比计算逻辑不变)
+            if (totalTakenDamage > 0)
+            {
+                var takenPct = player.TakenDamage / totalTakenDamage * 100;
+                player.TakenDamageDisplayPercentage = takenPct >= 1 ? $" {takenPct:F0}%" : null;
+            }
+            else
+            {
+                player.TakenDamageDisplayPercentage = null;
+            }
+
+            if (showDamagePercent && totalDamage > 0)
+            {
+                var damagePct = player.TotalDamage / totalDamage * 100;
+                player.DamageDisplayPercentage = damagePct >= 1 ? $" {damagePct:F0}%" : null;
+            }
+            else
+            {
+                player.DamageDisplayPercentage = null;
+            }
+
+            if (showHealingPercent && totalHealing > 0)
+            {
+                var healingPct = player.TotalHealing / totalHealing * 100;
+                player.HealingDisplayPercentage = healingPct >= 1 ? $" {healingPct:F0}%" : null;
+            }
+            else
+            {
+                player.HealingDisplayPercentage = null;
+            }
+        }
+
+        //刷新视图 (不再手动排序和移动)
+        Application.Current.Dispatcher.Invoke(() => PlayersView.Refresh());
+
+        //更新排名和总计 (在刷新后进行)
+        // 需要从已排序的视图中读取玩家来更新排名
+        var rank = 1;
+        foreach (var item in PlayersView)
+        {
+            if (item is PlayerViewModel player)
+            {
+                player.Rank = (IsSmartIdleModeEnabled && player.IsIdle) ? 0 : rank++;
+            }
+        }
+
         UpdateColumnTotals();
-        return;
     }
 
-    var totalDamage = playersForCalcs.Sum(p => p.TotalDamage);
-    var totalHealing = playersForCalcs.Sum(p => p.TotalHealing);
-    var totalTakenDamage = playersForCalcs.Sum(p => p.TakenDamage);
-    var showDamagePercent = SortColumn is "TotalDamage" or "TotalDps";
-    var showHealingPercent = SortColumn is "TotalHealing" or "TotalHps";
-
-    foreach (var player in Players)
-    {
-        if (IsSmartIdleModeEnabled && player.IsIdle)
-        {
-            player.DamageDisplayPercentage = null;
-            player.HealingDisplayPercentage = null;
-            player.TakenDamageDisplayPercentage = null;
-            continue;
-        }
-        
-        // ... (百分比计算逻辑不变)
-        if (totalTakenDamage > 0)
-        {
-            var takenPct = player.TakenDamage / totalTakenDamage * 100;
-            player.TakenDamageDisplayPercentage = takenPct >= 1 ? $" {takenPct:F0}%" : null;
-        }
-        else
-        {
-            player.TakenDamageDisplayPercentage = null;
-        }
-
-        if (showDamagePercent && totalDamage > 0)
-        {
-            var damagePct = player.TotalDamage / totalDamage * 100;
-            player.DamageDisplayPercentage = damagePct >= 1 ? $" {damagePct:F0}%" : null;
-        }
-        else
-        {
-            player.DamageDisplayPercentage = null;
-        }
-
-        if (showHealingPercent && totalHealing > 0)
-        {
-            var healingPct = player.TotalHealing / totalHealing * 100;
-            player.HealingDisplayPercentage = healingPct >= 1 ? $" {healingPct:F0}%" : null;
-        }
-        else
-        {
-            player.HealingDisplayPercentage = null;
-        }
-    }
-
-    //刷新视图 (不再手动排序和移动)
-    Application.Current.Dispatcher.Invoke(() => PlayersView.Refresh());
-    
-    //更新排名和总计 (在刷新后进行)
-    // 需要从已排序的视图中读取玩家来更新排名
-    var rank = 1;
-    foreach (var item in PlayersView)
-    {
-        if (item is PlayerViewModel player)
-        {
-            player.Rank = (IsSmartIdleModeEnabled && player.IsIdle) ? 0 : rank++;
-        }
-    }
-    
-    UpdateColumnTotals();
-}    
     [RelayCommand]
     private void SortBy(string columnName)
     {
@@ -1024,7 +1017,6 @@ private void UpdatePlayerList()
 
         ApplySorting();
     }
-
     [RelayCommand]
     public async Task ResetDataAsync()
     {
@@ -1043,7 +1035,7 @@ private void UpdatePlayerList()
             // 清空当前的快照数据
             Players.Clear();
             _playerCache.Clear();
-            OnPropertyChanged(nameof(PlayerCount));
+            OnPropertyChanged(nameof(PlayerCount)); // 此处会正确地将计数更新为0
 
             // 重新订阅实时数据事件
             _apiService.DataReceived += OnDataReceived;
@@ -1056,7 +1048,17 @@ private void UpdatePlayerList()
             // 像程序启动时一样，主动获取一次当前数据
             // 后续的数据更新将通过 UiUpdateTimer_Tick 自动触发计时器启动
             var initialData = await _apiService.GetInitialDataAsync();
-            if (initialData != null) await ProcessData(initialData);
+            if (initialData != null)
+            {
+                var listChanged = ProcessDataChanges(initialData);
+                if (listChanged)
+                {
+                    UpdatePlayerList();
+                }
+            }
+
+            // 新增：在处理完初始数据后，再次通知UI更新PlayerCount，确保显示最新总数
+            OnPropertyChanged(nameof(PlayerCount));
 
             // 确保WebSocket连接也已恢复
             await _apiService.ConnectAsync();
@@ -1075,6 +1077,7 @@ private void UpdatePlayerList()
             {
                 Players.Clear();
                 _playerCache.Clear();
+                OnPropertyChanged(nameof(PlayerCount)); // 重置实时数据时也通知更新
             });
         else
             ShowNotification("重置数据失败");
