@@ -78,24 +78,23 @@ public partial class PlayerViewModel(
             AccurateCritHealingText = null;
         }
     }
-        // 用于技能展开区域的可见性属性
-        public Visibility ExpandedVisibility => IsExpanded ? Visibility.Visible : Visibility.Collapsed;
-    
-        // 用于暴击伤害分析的可见性属性
-        public Visibility CritDamageVisibility => GetVisibilityForAnalysisText(AccurateCritDamageText);
-    
-        // 用于暴击治疗分析的可见性属性
-        public Visibility CritHealingVisibility => GetVisibilityForAnalysisText(AccurateCritHealingText);
-    
-        // 用于判断分析文本是否应显示的辅助方法
-        private Visibility GetVisibilityForAnalysisText(string? text)
-        {
-            if (string.IsNullOrEmpty(text) || text.Equals(localizationService["NotApplicable"], StringComparison.OrdinalIgnoreCase))
-            {
-                return Visibility.Collapsed;
-            }
-            return Visibility.Visible;
-        }
+
+    // 用于技能展开区域的可见性属性
+    public Visibility ExpandedVisibility => IsExpanded ? Visibility.Visible : Visibility.Collapsed;
+
+    // 用于暴击伤害分析的可见性属性
+    public Visibility CritDamageVisibility => GetVisibilityForAnalysisText(AccurateCritDamageText);
+
+    // 用于暴击治疗分析的可见性属性
+    public Visibility CritHealingVisibility => GetVisibilityForAnalysisText(AccurateCritHealingText);
+
+    // 用于判断分析文本是否应显示的辅助方法
+    private Visibility GetVisibilityForAnalysisText(string? text)
+    {
+        // 仅当文本为null或空时才隐藏控件。
+        // 这将使得"不适用"的文本能够正常显示出来。
+        return !string.IsNullOrEmpty(text) ? Visibility.Visible : Visibility.Collapsed;
+    }
 
     public DateTime LastActiveTime { get; set; } = DateTime.UtcNow;
     public ObservableCollection<SkillViewModel> Skills { get; } = new();
@@ -181,74 +180,80 @@ public partial class PlayerViewModel(
 
     public void CalculateAccurateCritDamage(IReadOnlyDictionary<string, SkillData> skillsData)
     {
-        if (skillsData.Count == 0)
+        const int minSamples = 2; // 最低样本数要求
+
+        // 筛选出同时具有普通和暴击记录的有效伤害技能
+        var validDamageSkills = skillsData.Values.Where(s =>
+            s.Type == "伤害" &&
+            s.CountBreakdown.Normal > 0 &&
+            s.CountBreakdown.Critical > 0).ToList();
+
+        if (!validDamageSkills.Any())
         {
             AccurateCritDamageText = localizationService["NotApplicable"] ?? "数据不足";
+            OnPropertyChanged(nameof(CritDamageVisibility));
             return;
         }
 
-        var critMultipliers = new List<(double multiplier, int weight)>();
-        const int minSamples = 3;
+        // 仅汇总有效技能的数据
+        var totalNormalCount = validDamageSkills.Sum(s => s.CountBreakdown.Normal);
+        var totalCritCount = validDamageSkills.Sum(s => s.CountBreakdown.Critical);
+        var totalNormalDamage = validDamageSkills.Sum(s => s.DamageBreakdown.Normal);
+        var totalCritDamage = validDamageSkills.Sum(s => s.DamageBreakdown.Critical + s.DamageBreakdown.CritLucky);
 
-        foreach (var skill in skillsData.Values)
+        // 基于汇总后的有效数据进行计算
+        if (totalNormalCount >= minSamples && totalCritCount >= minSamples && totalNormalDamage > 0)
         {
-            if (skill.Type != "伤害" || skill.CountBreakdown.Normal < minSamples ||
-                skill.CountBreakdown.Critical < minSamples) continue;
-            var avgNormal = skill.DamageBreakdown.Normal / skill.CountBreakdown.Normal;
-            if (!(avgNormal > 0)) continue;
-            var totalCrit = skill.DamageBreakdown.Critical + skill.DamageBreakdown.CritLucky;
-            var avgCrit = totalCrit / skill.CountBreakdown.Critical;
-            critMultipliers.Add((avgCrit / avgNormal, skill.TotalCount));
-        }
-
-        if (critMultipliers.Count > 0)
-        {
-            var totalWeightedMultiplier = critMultipliers.Sum(t => t.multiplier * t.weight);
-            var totalWeight = critMultipliers.Sum(t => t.weight);
-            var weightedAvgMultiplier = totalWeightedMultiplier / totalWeight;
-            var bonus = weightedAvgMultiplier - 1;
+            var avgNormal = totalNormalDamage / totalNormalCount;
+            var avgCrit = totalCritDamage / totalCritCount;
+            var bonus = (avgCrit / avgNormal) - 1;
             AccurateCritDamageText = $"{bonus:P1}";
         }
         else
         {
             AccurateCritDamageText = localizationService["NotApplicable"] ?? "数据不足";
         }
+
+        OnPropertyChanged(nameof(CritDamageVisibility));
     }
 
     public void CalculateAccurateCritHealing(IReadOnlyDictionary<string, SkillData> skillsData)
     {
-        if (skillsData.Count == 0)
+        const int minSamples = 2; // 最低样本数要求
+
+        // 筛选出同时具有普通和暴击记录的有效治疗技能
+        var validHealingSkills = skillsData.Values.Where(s =>
+            s.Type == "治疗" &&
+            s.CountBreakdown.Normal > 0 &&
+            s.CountBreakdown.Critical > 0).ToList();
+
+        if (!validHealingSkills.Any())
         {
             AccurateCritHealingText = localizationService["NotApplicable"] ?? "数据不足";
+            OnPropertyChanged(nameof(CritHealingVisibility));
             return;
         }
 
-        var critMultipliers = new List<(double multiplier, int weight)>();
-        const int minSamples = 3;
+        // 仅汇总有效技能的数据
+        var totalNormalCount = validHealingSkills.Sum(s => s.CountBreakdown.Normal);
+        var totalCritCount = validHealingSkills.Sum(s => s.CountBreakdown.Critical);
+        var totalNormalHealing = validHealingSkills.Sum(s => s.DamageBreakdown.Normal);
+        var totalCritHealing = validHealingSkills.Sum(s => s.DamageBreakdown.Critical + s.DamageBreakdown.CritLucky);
 
-        foreach (var skill in skillsData.Values)
+        // 基于汇总后的有效数据进行计算
+        if (totalNormalCount >= minSamples && totalCritCount >= minSamples && totalNormalHealing > 0)
         {
-            if (skill.Type != "治疗" || skill.CountBreakdown.Normal < minSamples ||
-                skill.CountBreakdown.Critical < minSamples) continue;
-            var avgNormal = skill.DamageBreakdown.Normal / skill.CountBreakdown.Normal;
-            if (!(avgNormal > 0)) continue;
-            var totalCrit = skill.DamageBreakdown.Critical + skill.DamageBreakdown.CritLucky;
-            var avgCrit = totalCrit / skill.CountBreakdown.Critical;
-            critMultipliers.Add((avgCrit / avgNormal, skill.TotalCount));
-        }
-
-        if (critMultipliers.Count > 0)
-        {
-            var totalWeightedMultiplier = critMultipliers.Sum(t => t.multiplier * t.weight);
-            var totalWeight = critMultipliers.Sum(t => t.weight);
-            var weightedAvgMultiplier = totalWeightedMultiplier / totalWeight;
-            var bonus = weightedAvgMultiplier - 1;
+            var avgNormal = totalNormalHealing / totalNormalCount;
+            var avgCrit = totalCritHealing / totalCritCount;
+            var bonus = (avgCrit / avgNormal) - 1;
             AccurateCritHealingText = $"{bonus:P1}";
         }
         else
         {
             AccurateCritHealingText = localizationService["NotApplicable"] ?? "数据不足";
         }
+
+        OnPropertyChanged(nameof(CritHealingVisibility));
     }
 
     [RelayCommand]
