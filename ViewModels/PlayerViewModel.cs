@@ -15,6 +15,7 @@ public partial class PlayerViewModel(
     INotificationService notificationService) : ObservableObject
 {
     [ObservableProperty] private string? _accurateCritDamageText;
+    [ObservableProperty] private string? _accurateCritHealingText;
     [ObservableProperty] private string? _damageDisplayPercentage;
     private UserData? _data;
     private string _fightDuration = "0:00";
@@ -73,6 +74,7 @@ public partial class PlayerViewModel(
             if (value) return;
             if (Skills.Count > 0) Skills.Clear();
             AccurateCritDamageText = null;
+            AccurateCritHealingText = null;
         }
     }
 
@@ -191,6 +193,42 @@ public partial class PlayerViewModel(
         else
         {
             AccurateCritDamageText = localizationService["NotApplicable"] ?? "数据不足";
+        }
+    }
+
+    public void CalculateAccurateCritHealing(IReadOnlyDictionary<string, SkillData> skillsData)
+    {
+        if (skillsData.Count == 0)
+        {
+            AccurateCritHealingText = localizationService["NotApplicable"] ?? "数据不足";
+            return;
+        }
+
+        var critMultipliers = new List<(double multiplier, int weight)>();
+        const int minSamples = 3;
+
+        foreach (var skill in skillsData.Values)
+        {
+            if (skill.Type != "治疗" || skill.CountBreakdown.Normal < minSamples ||
+                skill.CountBreakdown.Critical < minSamples) continue;
+            var avgNormal = skill.DamageBreakdown.Normal / skill.CountBreakdown.Normal;
+            if (!(avgNormal > 0)) continue;
+            var totalCrit = skill.DamageBreakdown.Critical + skill.DamageBreakdown.CritLucky;
+            var avgCrit = totalCrit / skill.CountBreakdown.Critical;
+            critMultipliers.Add((avgCrit / avgNormal, skill.TotalCount));
+        }
+
+        if (critMultipliers.Count > 0)
+        {
+            var totalWeightedMultiplier = critMultipliers.Sum(t => t.multiplier * t.weight);
+            var totalWeight = critMultipliers.Sum(t => t.weight);
+            var weightedAvgMultiplier = totalWeightedMultiplier / totalWeight;
+            var bonus = weightedAvgMultiplier - 1;
+            AccurateCritHealingText = $"{bonus:P1}";
+        }
+        else
+        {
+            AccurateCritHealingText = localizationService["NotApplicable"] ?? "数据不足";
         }
     }
 

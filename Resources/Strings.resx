@@ -171,7 +171,9 @@
     <data name="AccurateCritDamageLabel" xml:space="preserve">
     <value>暴伤加成 (分析值): </value>
   </data>
-
+  <data name="AccurateCritHealingLabel" xml:space="preserve">
+    <value>暴疗加成 (分析值): </value>
+  </data>
     <data name="NotApplicable" xml:space="preserve">
     <value>不适用</value>
   </data>

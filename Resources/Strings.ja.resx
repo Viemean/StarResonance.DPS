@@ -177,4 +177,7 @@
     <data name="PauseOnSnapshot" xml:space="preserve">
     <value>スナップショット時停止</value>
   </data>
+  <data name="AccurateCritHealingLabel" xml:space="preserve">
+    <value>クリヒールボーナス（分析値）：</value>
+  </data>
 </root>

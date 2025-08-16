@@ -169,13 +169,16 @@
     <data name="PauseOnExit" xml:space="preserve">
     <value>Pause service on exit</value>
   </data>
-    <data name="AccurateCritDamageLabel" xml:space="preserve">
-    <value>Crit Dmg Bonus (Analyzed Val):</value>
-  </data>
     <data name="NotApplicable" xml:space="preserve">
     <value>N/A</value>
   </data>
     <data name="PauseOnSnapshot" xml:space="preserve">
     <value>Pause service on snapshot</value>
+  </data>
+  <data name="AccurateCritDamageLabel" xml:space="preserve">
+    <value>Crit Dmg Bonus (Analyzed Val):</value>
+  </data>
+  <data name="AccurateCritHealingLabel" xml:space="preserve">
+    <value>Crit Heal Bonus (Analyzed Val):</value>
   </data>
 </root>

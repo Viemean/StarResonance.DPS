@@ -462,7 +462,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             Debug.WriteLine($"CSV Export failed: {ex}");
         }
     }
-    
+
     [RelayCommand]
     private async Task TogglePlayerExpansion(PlayerViewModel player)
     {
@@ -520,6 +520,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 });
 
                 player.CalculateAccurateCritDamage(skillDataResponse.Data.Skills);
+                player.CalculateAccurateCritHealing(skillDataResponse.Data.Skills);
             }
         }
         catch (Exception ex)
