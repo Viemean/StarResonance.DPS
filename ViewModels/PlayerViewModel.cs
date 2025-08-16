@@ -70,6 +70,7 @@ public partial class PlayerViewModel(
         set
         {
             if (!SetProperty(ref _isExpanded, value)) return;
+            OnPropertyChanged(nameof(ExpandedVisibility)); // 通知UI更新
             // 当 IsExpanded 被设置为折叠时清空技能和分析数据
             if (value) return;
             if (Skills.Count > 0) Skills.Clear();
@@ -77,6 +78,24 @@ public partial class PlayerViewModel(
             AccurateCritHealingText = null;
         }
     }
+        // 用于技能展开区域的可见性属性
+        public Visibility ExpandedVisibility => IsExpanded ? Visibility.Visible : Visibility.Collapsed;
+    
+        // 用于暴击伤害分析的可见性属性
+        public Visibility CritDamageVisibility => GetVisibilityForAnalysisText(AccurateCritDamageText);
+    
+        // 用于暴击治疗分析的可见性属性
+        public Visibility CritHealingVisibility => GetVisibilityForAnalysisText(AccurateCritHealingText);
+    
+        // 用于判断分析文本是否应显示的辅助方法
+        private Visibility GetVisibilityForAnalysisText(string? text)
+        {
+            if (string.IsNullOrEmpty(text) || text.Equals(localizationService["NotApplicable"], StringComparison.OrdinalIgnoreCase))
+            {
+                return Visibility.Collapsed;
+            }
+            return Visibility.Visible;
+        }
 
     public DateTime LastActiveTime { get; set; } = DateTime.UtcNow;
     public ObservableCollection<SkillViewModel> Skills { get; } = new();

@@ -94,7 +94,7 @@
             </Border>
 
             <Border Background="#20FFFFFF" CornerRadius="5" Margin="30,5,5,5" Padding="10"
-                    Visibility="{Binding IsExpanded, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    Visibility="{Binding ExpandedVisibility}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -146,15 +146,15 @@
                                 </Style.Triggers>
                             </Style>
                         </WrapPanel.Style>
-                        <TextBlock Foreground="Orange" FontWeight="Bold" Margin="0,0,20,0"
-                                   Visibility="{Binding AccurateCritDamageText, Converter={StaticResource StringToVisibilityConverter}, ConverterParameter=NotApplicable}">
+                                               <TextBlock Foreground="Orange" FontWeight="Bold" Margin="0,0,20,0"
+                                                          Visibility="{Binding CritDamageVisibility}">
                             <Run
                                 Text="{Binding DataContext.Localization[AccurateCritDamageLabel], ElementName=RootWindow, Mode=OneWay}" />
                             <Run Text="{Binding AccurateCritDamageText}" />
                         </TextBlock>
 
                         <TextBlock Foreground="LawnGreen" FontWeight="Bold"
-                                   Visibility="{Binding AccurateCritHealingText, Converter={StaticResource StringToVisibilityConverter}, ConverterParameter=NotApplicable}">
+                                   Visibility="{Binding CritHealingVisibility}">
                             <Run
                                 Text="{Binding DataContext.Localization[AccurateCritHealingLabel], ElementName=RootWindow, Mode=OneWay}" />
                             <Run Text="{Binding AccurateCritHealingText}" />
