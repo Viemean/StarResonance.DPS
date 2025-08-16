@@ -85,10 +85,16 @@
                         <Run Text="{Binding HealingDisplayPercentage, Mode=OneWay}" Foreground="LightGoldenrodYellow" />
                     </TextBlock>
 
-                    <TextBlock Grid.Column="6" Text="{Binding TotalDpsText}" Style="{StaticResource DataCell}"
-                               Foreground="Yellow" ToolTip="{Binding TotalDpsTooltip}" />
-                    <TextBlock Grid.Column="7" Text="{Binding TotalHpsText}" Style="{StaticResource DataCell}"
-                               Foreground="LimeGreen" ToolTip="{Binding TotalHpsTooltip}" />
+                    <TextBlock Grid.Column="6" Style="{StaticResource DataCell}"
+                               Foreground="Yellow" ToolTip="{Binding TotalDpsTooltip}">
+                        <Run Text="{Binding TotalDpsText, Mode=OneWay}" />
+                        <Run Text="{Binding DpsDisplayPercentage, Mode=OneWay}" Foreground="LightGoldenrodYellow" />
+                    </TextBlock>
+                    <TextBlock Grid.Column="7" Style="{StaticResource DataCell}"
+                               Foreground="LimeGreen" ToolTip="{Binding TotalHpsTooltip}">
+                        <Run Text="{Binding TotalHpsText, Mode=OneWay}" />
+                        <Run Text="{Binding HpsDisplayPercentage, Mode=OneWay}" Foreground="LightGoldenrodYellow" />
+                    </TextBlock>
 
                     <TextBlock Grid.Column="8" Style="{StaticResource DataCell}" ToolTip="{Binding TakenDamageTooltip}">
                         <Run Text="{Binding TakenDamageText, Mode=OneWay}" Foreground="DodgerBlue" />

@@ -17,6 +17,11 @@ public partial class PlayerViewModel(
     [ObservableProperty] private string? _accurateCritDamageText;
     [ObservableProperty] private string? _accurateCritHealingText;
     [ObservableProperty] private string? _damageDisplayPercentage;
+    [ObservableProperty] 
+    private string? _dpsDisplayPercentage;
+
+    [ObservableProperty] 
+    private string? _hpsDisplayPercentage;
     private UserData? _data;
     private string _fightDuration = "0:00";
 

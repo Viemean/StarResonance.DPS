@@ -232,6 +232,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             await FetchAndProcessSkillDataAsync(_expandedPlayer);
         }
     }
+
     public IEnumerable<FontFamily> SystemFonts { get; }
 
     public LocalizationService Localization { get; }
@@ -578,7 +579,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
         // 无论是主动获取的还是第一次展开，都强制刷新一次以获取最新数据
         await FetchAndProcessSkillDataAsync(player);
-    
+
         // [修改] 展开后启动定时器
         _skillUpdateTimer.Start();
     }
@@ -988,16 +989,19 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     /// </summary>
     private void UpdatePlayerList()
     {
-        // 计算百分比
         var playersForCalcs = IsSmartIdleModeEnabled
             ? Players.Where(p => !p.IsIdle).ToList()
             : Players.ToList();
+
         if (playersForCalcs.Count == 0)
         {
+            // 如果没有活跃玩家，则清空所有百分比
             foreach (var p in Players)
             {
                 p.DamageDisplayPercentage = null;
                 p.HealingDisplayPercentage = null;
+                p.DpsDisplayPercentage = null;
+                p.HpsDisplayPercentage = null;
                 p.TakenDamageDisplayPercentage = null;
             }
 
@@ -1005,23 +1009,29 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             return;
         }
 
+        // 1. 计算所有需要用到的团队总和
         var totalDamage = playersForCalcs.Sum(p => p.TotalDamage);
         var totalHealing = playersForCalcs.Sum(p => p.TotalHealing);
+        var totalDps = playersForCalcs.Sum(p => p.TotalDps);
+        var totalHps = playersForCalcs.Sum(p => p.TotalHps);
         var totalTakenDamage = playersForCalcs.Sum(p => p.TakenDamage);
-        var showDamagePercent = SortColumn is "TotalDamage" or "TotalDps";
-        var showHealingPercent = SortColumn is "TotalHealing" or "TotalHps";
 
         foreach (var player in Players)
         {
+            // 2. 首先清空所有非固定的百分比，确保切换排序时旧的百分比会消失
+            player.DamageDisplayPercentage = null;
+            player.HealingDisplayPercentage = null;
+            player.DpsDisplayPercentage = null;
+            player.HpsDisplayPercentage = null;
+
+            // 如果玩家处于闲置状态，则不计算任何百分比
             if (IsSmartIdleModeEnabled && player.IsIdle)
             {
-                player.DamageDisplayPercentage = null;
-                player.HealingDisplayPercentage = null;
                 player.TakenDamageDisplayPercentage = null;
                 continue;
             }
 
-            // ... (百分比计算逻辑不变)
+            // 3. [固定显示] 始终计算并显示承伤百分比
             if (totalTakenDamage > 0)
             {
                 var takenPct = player.TakenDamage / totalTakenDamage * 100;
@@ -1032,32 +1042,47 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 player.TakenDamageDisplayPercentage = null;
             }
 
-            if (showDamagePercent && totalDamage > 0)
+            // 4. [动态显示] 根据当前排序列 (SortColumn) 计算并显示对应的百分比
+            switch (SortColumn)
             {
-                var damagePct = player.TotalDamage / totalDamage * 100;
-                player.DamageDisplayPercentage = damagePct >= 1 ? $" {damagePct:F0}%" : null;
-            }
-            else
-            {
-                player.DamageDisplayPercentage = null;
-            }
+                case SortableColumns.TotalDamage:
+                    if (totalDamage > 0)
+                    {
+                        var pct = player.TotalDamage / totalDamage * 100;
+                        player.DamageDisplayPercentage = pct >= 1 ? $" {pct:F0}%" : null;
+                    }
 
-            if (showHealingPercent && totalHealing > 0)
-            {
-                var healingPct = player.TotalHealing / totalHealing * 100;
-                player.HealingDisplayPercentage = healingPct >= 1 ? $" {healingPct:F0}%" : null;
-            }
-            else
-            {
-                player.HealingDisplayPercentage = null;
+                    break;
+                case SortableColumns.TotalHealing:
+                    if (totalHealing > 0)
+                    {
+                        var pct = player.TotalHealing / totalHealing * 100;
+                        player.HealingDisplayPercentage = pct >= 1 ? $" {pct:F0}%" : null;
+                    }
+
+                    break;
+                case SortableColumns.TotalDps:
+                    if (totalDps > 0)
+                    {
+                        var pct = player.TotalDps / totalDps * 100;
+                        player.DpsDisplayPercentage = pct >= 1 ? $" {pct:F0}%" : null;
+                    }
+
+                    break;
+                case SortableColumns.TotalHps:
+                    if (totalHps > 0)
+                    {
+                        var pct = player.TotalHps / totalHps * 100;
+                        player.HpsDisplayPercentage = pct >= 1 ? $" {pct:F0}%" : null;
+                    }
+
+                    break;
             }
         }
 
-        //刷新视图 (不再手动排序和移动)
+        // 更新UI视图、排名和表头总计 (这部分逻辑保持不变)
         Application.Current.Dispatcher.Invoke(() => PlayersView.Refresh());
 
-        //更新排名和总计 (在刷新后进行)
-        // 需要从已排序的视图中读取玩家来更新排名
         var rank = 1;
         foreach (var item in PlayersView)
         {
@@ -1177,11 +1202,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         });
 
         // 立即通过HTTP请求获取一次完整的当前数据
-        var refreshedData  = await _apiService.GetInitialDataAsync();
-        if (refreshedData  != null)
+        var refreshedData = await _apiService.GetInitialDataAsync();
+        if (refreshedData != null)
         {
             // 使用ProcessData方法将数据一次性加载到UI
-            await ProcessData(refreshedData );
+            await ProcessData(refreshedData);
         }
     }
 
