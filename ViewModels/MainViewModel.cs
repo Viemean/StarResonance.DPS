@@ -598,6 +598,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             _apiService.DataReceived -= OnDataReceived;
 
             _fightTimer.Stop();
+            _uiUpdateTimer.Stop(); // 停止UI刷新计时器
+
             _elapsedSeconds = snapshot.ElapsedSeconds;
             var timeSpan = TimeSpan.FromSeconds(_elapsedSeconds);
             FightDurationText =
@@ -923,6 +925,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
             // 重新订阅实时数据事件
             _apiService.DataReceived += OnDataReceived;
+            _uiUpdateTimer.Start(); // 重新启动UI刷新计时器
 
             // 向后端服务发送“恢复”指令，并同步本地UI状态
             await _apiService.SetPauseStateAsync(false);
