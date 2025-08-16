@@ -175,4 +175,7 @@
   <data name="NotApplicable" xml:space="preserve">
     <value>不适用</value>
   </data>
+  <data name="PauseOnSnapshot" xml:space="preserve">
+    <value>进入快照时暂停服务</value>
+  </data>
 </root>

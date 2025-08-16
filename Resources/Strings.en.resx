@@ -175,4 +175,7 @@
   <data name="NotApplicable" xml:space="preserve">
     <value>N/A</value>
   </data>
+  <data name="PauseOnSnapshot" xml:space="preserve">
+    <value>Pause service on snapshot</value>
+  </data>
 </root>

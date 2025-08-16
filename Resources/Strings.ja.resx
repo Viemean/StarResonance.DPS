@@ -4,7 +4,7 @@
     <value>カウントダウンを中止</value>
   </data>
     <data name="BackendAddress" xml:space="preserve">
-    <value>バックエンドサービスアドレス</value>
+    <value>バックエンドアドレス</value>
   </data>
     <data name="Cancel" xml:space="preserve">
     <value>キャンセル</value>
@@ -52,7 +52,7 @@
     <value>5分</value>
   </data>
     <data name="FontSize" xml:space="preserve">
-    <value>フォントサイズ</value>
+    <value>フォント</value>
   </data>
     <data name="Language" xml:space="preserve">
     <value>言語</value>
@@ -133,13 +133,13 @@
     <value>HPS</value>
   </data>
     <data name="UIRefreshInterval" xml:space="preserve">
-    <value>UI更新間隔 (ms)</value>
+    <value>UI更新間隔</value>
   </data>
     <data name="Unlock" xml:space="preserve">
     <value>ロック解除</value>
   </data>
     <data name="WindowOpacity" xml:space="preserve">
-    <value>ウィンドウの不透明度</value>
+    <value>不透明度</value>
   </data>
     <data name="FightDuration" xml:space="preserve">
     <value>時間</value>
@@ -154,7 +154,7 @@
     <value>コピー失敗: クリップボードにアクセスできません</value>
   </data>
     <data name="SmartIdleMode" xml:space="preserve">
-    <value>アイドルモードを有効にする</value>
+    <value>アイドルモード</value>
   </data>
     <data name="FontFamily" xml:space="preserve">
     <value>フォントファミリー</value>
@@ -166,12 +166,15 @@
     <value>有効時、無操作のプレイヤーはリスト下部に移動し、%計算から除外されます。</value>
   </data>
     <data name="PauseOnExit" xml:space="preserve">
-    <value>終了時にサービスを一時停止</value>
+    <value>終了時サービス停止</value>
   </data>
   <data name="AccurateCritDamageLabel" xml:space="preserve">
     <value>クリダメボーナス（分析値）：</value>
   </data>
   <data name="NotApplicable" xml:space="preserve">
     <value>適用外</value>
+  </data>
+  <data name="PauseOnSnapshot" xml:space="preserve">
+    <value>スナップショット時停止</value>
   </data>
 </root>
