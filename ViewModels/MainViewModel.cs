@@ -462,22 +462,30 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             Debug.WriteLine($"CSV Export failed: {ex}");
         }
     }
-
+    
     [RelayCommand]
     private async Task TogglePlayerExpansion(PlayerViewModel player)
     {
-        if (_expandedPlayer != null && _expandedPlayer != player) _expandedPlayer.IsExpanded = false;
+        // 如果当前有其他玩家处于展开状态，先将其折叠
+        if (_expandedPlayer is not null && _expandedPlayer != player)
+        {
+            _expandedPlayer.IsExpanded = false;
+        }
 
+        // 切换被点击玩家的展开/折叠状态
+        player.IsExpanded = !player.IsExpanded;
+
+        // 根据切换后的状态执行相应操作
         if (player.IsExpanded)
         {
-            player.IsExpanded = false;
-            _expandedPlayer = null;
+            // 如果是展开，则记录当前展开的玩家，并加载其技能数据
+            _expandedPlayer = player;
+            await LoadSkillData(player);
         }
         else
         {
-            player.IsExpanded = true;
-            _expandedPlayer = player;
-            await LoadSkillData(player);
+            // 如果是折叠，则清空记录
+            _expandedPlayer = null;
         }
     }
 
@@ -638,7 +646,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         }
     }
 
-    private void UiUpdateTimer_Tick(object? sender, EventArgs e)
+    private async void UiUpdateTimer_Tick(object? sender, EventArgs e)
     {
         ApiResponse? dataToProcess;
         lock (_dataLock)
@@ -684,7 +692,14 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             }
         }
 
-        _ = ProcessData(dataToProcess);
+        // 处理主玩家列表数据
+        await ProcessData(dataToProcess);
+
+        // 如果有玩家的详情处于展开状态，则同样刷新其技能数据
+        if (_expandedPlayer is { IsExpanded: true })
+        {
+            await LoadSkillData(_expandedPlayer);
+        }
     }
 
     public async Task InitializeAsync()
