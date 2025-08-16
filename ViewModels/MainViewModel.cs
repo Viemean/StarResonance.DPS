@@ -91,19 +91,40 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [ObservableProperty] private string _fightDurationText = "0:00";
     [ObservableProperty] private double _fontSize = 14;
     [ObservableProperty] private bool _isCountdownOptionsPopupOpen;
-    [ObservableProperty] private bool _isCountdownRunning;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CountdownRunningVisibility))]
+    [NotifyPropertyChangedFor(nameof(RealtimeModeVisibility))]
+    // 倒计时按钮的可见性也受此影响
+    private bool _isCountdownRunning;
+
     [ObservableProperty] private bool _isCustomCountdownPopupOpen;
     private bool _isFightActive;
-    [ObservableProperty] private bool _isInSnapshotMode;
-    [ObservableProperty] private bool _isLocked;
-    [ObservableProperty] private bool _isNotificationVisible;
-    [ObservableProperty] private bool _isPaused;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SnapshotModeVisibility))]
+    [NotifyPropertyChangedFor(nameof(RealtimeModeVisibility))]
+    private bool _isInSnapshotMode;
+
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsHitTestVisible))]
+    private bool _isLocked;
+
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(NotificationVisibility))]
+    private bool _isNotificationVisible;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PauseStatusVisibility))]
+    [NotifyPropertyChangedFor(nameof(FightDurationVisibility))]
+    private bool _isPaused;
 
     [ObservableProperty] private bool _isPauseOnExitEnabled = true;
 
     //控制进入快照时是否暂停服务的选项，默认为 true
     [ObservableProperty] private bool _isPauseOnSnapshotEnabled = true;
-    [ObservableProperty] private bool _isSettingsVisible;
+
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(SettingsVisibility))]
+    private bool _isSettingsVisible;
+
     [ObservableProperty] private bool _isSmartIdleModeEnabled;
     private DateTime _lastCombatActivityTime;
     private ApiResponse? _latestReceivedData;
@@ -124,7 +145,20 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [ObservableProperty] private string? _totalHealingSumTooltip;
     [ObservableProperty] private string? _totalHpsSumTooltip;
     [ObservableProperty] private int _uiUpdateInterval = 250;
-    [ObservableProperty] private double _windowOpacity = 0.85;
+
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(FontOpacity))]
+    private double _windowOpacity = 0.85;
+
+    //用于替换 IValueConverter 的计算属性
+    public Visibility SnapshotModeVisibility => IsInSnapshotMode ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility RealtimeModeVisibility => IsInSnapshotMode ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility CountdownRunningVisibility => IsCountdownRunning ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility PauseStatusVisibility => IsPaused ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility FightDurationVisibility => !IsPaused ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility NotificationVisibility => IsNotificationVisible ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility SettingsVisibility => IsSettingsVisible ? Visibility.Visible : Visibility.Collapsed;
+    public bool IsHitTestVisible => !IsLocked;
+    public double FontOpacity => WindowOpacity < 0.8 ? 0.8 : WindowOpacity;
 
     public MainViewModel(ApiService apiService, LocalizationService localizationService)
     {
