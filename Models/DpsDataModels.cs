@@ -202,6 +202,25 @@ public record SkillApiResponseData
     [JsonInclude]
     [JsonPropertyName("skills")]
     public Dictionary<string, SkillData> Skills { get; init; } = new();
+    
+    [JsonInclude]
+    [JsonPropertyName("attr")]
+    public Attr? Attr { get; init; }
+}
+
+public record Attr
+{
+    [JsonInclude]
+    [JsonPropertyName("level")]
+    public int Level { get; init; }
+
+    [JsonInclude]
+    [JsonPropertyName("rank_level")]
+    public int RankLevel { get; init; }
+
+    [JsonInclude]
+    [JsonPropertyName("max_hp")]
+    public int MaxHp { get; init; }
 }
 
 public record SkillApiResponse

@@ -118,16 +118,60 @@ public partial class PlayerViewModel(
         get
         {
             if (_data == null) return string.Empty;
+
             var critRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Critical / _data.TotalCount.Total : 0;
             var luckyRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Lucky / _data.TotalCount.Total : 0;
 
             var sb = new StringBuilder();
             sb.AppendLine($"{localizationService["Tooltip_PlayerId"] ?? "角色ID: "}{Uid}");
             sb.AppendLine($"{localizationService["Tooltip_PlayerName"] ?? "角色昵称: "}{Name}");
+
+            // 优化：逐个检查属性，仅当存在且值有效时才显示
+            if (RawSkillData?.Attr is { } attr)
+            {
+                if (attr.Level > 0)
+                {
+                    // 如果臂章等级也存在，则合并显示在一行
+                    if (attr.RankLevel > 0)
+                    {
+                        sb.AppendLine($"等级: {attr.Level} (臂章: {attr.RankLevel})");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"等级: {attr.Level}");
+                    }
+                }
+                // 处理只存在臂章等级的罕见情况
+                else if (attr.RankLevel > 0)
+                {
+                    sb.AppendLine($"臂章: {attr.RankLevel}");
+                }
+
+                if (attr.MaxHp > 0)
+                {
+                    sb.AppendLine($"最大生命值: {attr.MaxHp:N0}");
+                }
+            }
+
             sb.AppendLine($"{localizationService["Tooltip_Score"] ?? "评分: "}{FightPoint}");
             sb.AppendLine($"{localizationService["Tooltip_Profession"] ?? "职业: "}{Profession}");
             sb.AppendLine($"{localizationService["Tooltip_CritRate"] ?? "暴击率: "}{critRate:P1}");
             sb.AppendLine($"{localizationService["Tooltip_LuckyRate"] ?? "幸运率: "}{luckyRate:P1}");
+
+            var notApplicableText = localizationService["NotApplicable"] ?? "数据不足";
+            if (!string.IsNullOrEmpty(AccurateCritDamageText) && AccurateCritDamageText != notApplicableText)
+            {
+                sb.AppendLine(
+                    $"{(localizationService["AccurateCritDamageLabel"] ?? "暴伤加成 (分析值): ").TrimEnd(':', ' ')}: {AccurateCritDamageText}");
+            }
+
+            if (!string.IsNullOrEmpty(AccurateCritHealingText) && AccurateCritHealingText != notApplicableText)
+            {
+                sb.AppendLine(
+                    $"{(localizationService["AccurateCritHealingLabel"] ?? "暴疗加成 (分析值): ").TrimEnd(':', ' ')}: {AccurateCritHealingText}");
+            }
+
+
             return sb.ToString().TrimEnd();
         }
     }
@@ -185,9 +229,7 @@ public partial class PlayerViewModel(
 
         // 筛选出同时具有普通和暴击记录的、可供分析的有效伤害技能
         var validSkills = skillsData.Values.Where(s =>
-            s.Type == "伤害" &&
-            s.CountBreakdown.Normal >= minSamples &&
-            s.CountBreakdown.Critical >= minSamples).ToList();
+            s is { Type: "伤害", CountBreakdown: { Normal: >= minSamples, Critical: >= minSamples } }).ToList();
 
         foreach (var skill in validSkills)
         {
@@ -223,6 +265,7 @@ public partial class PlayerViewModel(
         }
 
         OnPropertyChanged(nameof(CritDamageVisibility));
+        OnPropertyChanged(nameof(ToolTipText));
     }
 
     public void CalculateAccurateCritHealing(IReadOnlyDictionary<string, SkillData> skillsData)
@@ -232,9 +275,7 @@ public partial class PlayerViewModel(
 
         // 筛选出同时具有普通和暴击记录的、可供分析的有效治疗技能
         var validSkills = skillsData.Values.Where(s =>
-            s.Type == "治疗" &&
-            s.CountBreakdown.Normal >= minSamples &&
-            s.CountBreakdown.Critical >= minSamples).ToList();
+            s is { Type: "治疗", CountBreakdown: { Normal: >= minSamples, Critical: >= minSamples } }).ToList();
 
         foreach (var skill in validSkills)
         {
@@ -270,6 +311,7 @@ public partial class PlayerViewModel(
         }
 
         OnPropertyChanged(nameof(CritHealingVisibility));
+        OnPropertyChanged(nameof(ToolTipText));
     }
 
     [RelayCommand]
