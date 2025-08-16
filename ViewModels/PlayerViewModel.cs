@@ -8,7 +8,12 @@ using StarResonance.DPS.Models;
 using StarResonance.DPS.Services;
 
 namespace StarResonance.DPS.ViewModels;
-
+/// <summary>
+/// 表示单个玩家数据及其在UI中状态的视图模型。
+/// </summary>
+/// <param name="uid">玩家的唯一ID。</param>
+/// <param name="localizationService">用于UI文本本地化的服务。</param>
+/// <param name="notificationService">用于显示通知的服务。</param>
 public partial class PlayerViewModel(
     long uid,
     LocalizationService localizationService,
@@ -44,20 +49,17 @@ public partial class PlayerViewModel(
     [ObservableProperty] private double _totalHps;
 
     /// <summary>
-    ///     用于追踪此玩家的技能/属性数据上次成功获取的时间。
-    /// </summary>
-    public DateTime LastSkillDataFetchTime { get; set; } = DateTime.MinValue;
-
-    /// <summary>
-    ///     标记用户是否曾手动展开过此玩家的详情。一旦展开，将停止主动刷新。
-    /// </summary>
-    public bool HasBeenExpanded { get; set; }
-
-    /// <summary>
     ///     一个锁标志，防止对同一个玩家同时发起多个数据请求。
     /// </summary>
     public bool IsFetchingSkillData { get; set; }
 
+    /// <summary>
+    /// 用于从快照数据创建玩家视图模型的构造函数。
+    /// </summary>
+    /// <param name="snapshot">包含玩家原始数据和技能数据的快照对象。</param>
+    /// <param name="fightDuration">战斗持续时间的字符串表示。</param>
+    /// <param name="localizationService">本地化服务实例。</param>
+    /// <param name="notificationService">通知服务实例。</param>
     public PlayerViewModel(PlayerSnapshot snapshot, string fightDuration, LocalizationService localizationService,
             INotificationService notificationService)
         // 修正：从 SkillData 中安全地获取 Uid，如果不存在则默认为0
@@ -93,7 +95,6 @@ public partial class PlayerViewModel(
             // 当玩家详情被展开时，设置标志，停止后续的自动刷新
             if (value)
             {
-                HasBeenExpanded = true;
             }
 
             OnPropertyChanged(nameof(ExpandedVisibility)); // 通知UI更新
@@ -103,19 +104,17 @@ public partial class PlayerViewModel(
     // 用于技能展开区域的可见性属性
     public Visibility ExpandedVisibility => IsExpanded ? Visibility.Visible : Visibility.Collapsed;
 
-    // 用于暴击伤害分析的可见性属性
-    public Visibility CritDamageVisibility => GetVisibilityForAnalysisText(AccurateCritDamageText);
+    /// <summary>
+    /// 控制暴击伤害分析文本的可见性。
+    /// </summary>
+    public Visibility CritDamageVisibility =>
+        !string.IsNullOrEmpty(AccurateCritDamageText) ? Visibility.Visible : Visibility.Collapsed;
 
-    // 用于暴击治疗分析的可见性属性
-    public Visibility CritHealingVisibility => GetVisibilityForAnalysisText(AccurateCritHealingText);
-
-    // 用于判断分析文本是否应显示的辅助方法
-    private Visibility GetVisibilityForAnalysisText(string? text)
-    {
-        // 仅当文本为null或空时才隐藏控件。
-        // 这将使得"不适用"的文本能够正常显示出来。
-        return !string.IsNullOrEmpty(text) ? Visibility.Visible : Visibility.Collapsed;
-    }
+    /// <summary>
+    /// 控制暴击治疗分析文本的可见性。
+    /// </summary>
+    public Visibility CritHealingVisibility =>
+        !string.IsNullOrEmpty(AccurateCritHealingText) ? Visibility.Visible : Visibility.Collapsed;
 
     public DateTime LastActiveTime { get; set; } = DateTime.UtcNow;
     public ObservableCollection<SkillViewModel> Skills { get; } = new();

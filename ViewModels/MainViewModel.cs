@@ -498,17 +498,20 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             $"{Localization["TakenDamage"] ?? "承伤"}: {FormatNumber(totalTakenDamage)}\n{Localization["TakenDamage"] ?? "承伤"}: {totalTakenDamage:N0}";
     }
 
-    public static string FormatNumber(double num)
-    {
-        return num switch
+    /// <summary>
+    /// 将一个double类型的数值格式化为易于阅读的字符串，使用K, M, G等单位。
+    /// </summary>
+    /// <param name="num">要格式化的数值。</param>
+    /// <returns>格式化后的字符串。</returns>
+    public static string FormatNumber(double num) =>
+        num switch
         {
-            >= 1_000_000_000 => $"{num / 1_000_000_000:F2}G",
-            >= 1_000_000 => $"{num / 1_000_000:F2}M",
-            >= 10_000 => $"{num / 10_000:F1}W", // [新增] “万”单位格式
-            >= 1_000 => $"{num / 1_000:F2}K",
-            _ => num.ToString("F0")
+            >= 1_000_000_000 => $"{num / 1_000_000_000:0.##}G",
+            >= 1_000_000 => $"{num / 1_000_000:0.##}M",
+            >= 10_000 => $"{num / 10_000:0.#}W",
+            >= 1_000 => $"{num / 1_000:0.##}K",
+            _ => num.ToString("N0")
         };
-    }
 
     [RelayCommand]
     private async Task ConnectToBackendAsync()
@@ -632,7 +635,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             if (skillDataResponse?.Data != null)
             {
                 player.RawSkillData = skillDataResponse.Data;
-                player.LastSkillDataFetchTime = DateTime.UtcNow;
                 player.NotifyTooltipUpdate();
 
                 {

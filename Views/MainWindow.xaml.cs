@@ -6,7 +6,6 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
-using System.Windows.Media;
 using StarResonance.DPS.ViewModels;
 
 namespace StarResonance.DPS.Views;
@@ -25,13 +24,6 @@ public partial class MainWindow
         Loaded += OnMainWindowLoaded;
         Closing += OnMainWindowClosing;
         StateChanged += MainWindow_OnStateChanged;
-    }
-
-    // 公开 Background 属性以便绑定
-    public new Brush Background
-    {
-        get => base.Background;
-        set => base.Background = value;
     }
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -72,22 +64,29 @@ public partial class MainWindow
 
     private void MainWindow_OnStateChanged(object? sender, EventArgs e)
     {
-        if (WindowState == WindowState.Minimized)
+        switch (WindowState)
         {
-            if (!_isMinimized)
+            case WindowState.Minimized:
             {
-                _restoreTop = Top;
-                _restoreLeft = Left;
-                _restoreHeight = Height;
-                _restoreWidth = Width;
-                _isMinimized = true;
-            }
+                if (!_isMinimized)
+                {
+                    _restoreTop = Top;
+                    _restoreLeft = Left;
+                    _restoreHeight = Height;
+                    _restoreWidth = Width;
+                    _isMinimized = true;
+                }
 
-            Hide();
-        }
-        else if (WindowState == WindowState.Normal)
-        {
-            _isMinimized = false;
+                Hide();
+                break;
+            }
+            case WindowState.Normal:
+                _isMinimized = false;
+                break;
+            case WindowState.Maximized:
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
         }
     }
 

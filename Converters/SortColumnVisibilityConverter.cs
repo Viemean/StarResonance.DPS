@@ -6,22 +6,28 @@ namespace StarResonance.DPS.Converters;
 
 public class SortColumnVisibilityConverter : IMultiValueConverter
 {
+    /// <summary>
+    /// 根据当前的排序列和参数决定一个UI元素（如排序箭头）是否可见。
+    /// </summary>
+    /// <param name="values">包含两个字符串的数组：[0]为当前活动排序列的名称, [1]为当前控件绑定的列名参数。</param>
+    /// <param name="targetType">目标类型，应为 <see cref="Visibility"/>。</param>
+    /// <param name="parameter">未使用。</param>
+    /// <param name="culture">未使用。</param>
+    /// <returns>如果两个字符串忽略大小写相等，则返回 <see cref="Visibility.Visible"/>，否则返回 <see cref="Visibility.Collapsed"/>。</returns>
     public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
     {
-        // 检查传入的值是否是两个非空的字符串
-        if (values is [string sortColumn, string commandParameter, ..])
-            // 如果是，则进行比较并返回结果
+        if (values is [string sortColumn, string commandParameter])
+        {
             return sortColumn.Equals(commandParameter, StringComparison.OrdinalIgnoreCase)
                 ? Visibility.Visible
                 : Visibility.Collapsed;
+        }
 
-        // 对于任何其他情况（参数数量不对、类型不对、有null值），都直接返回折叠
         return Visibility.Collapsed;
     }
 
     public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
     {
-        // 这个转换器不需要反向转换，所以直接抛出异常
         throw new NotImplementedException();
     }
 }
