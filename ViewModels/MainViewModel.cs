@@ -28,6 +28,8 @@ public class AppState
     public int UiUpdateInterval { get; init; } = 250;
     public string? CultureName { get; init; }
     public bool PauseOnExit { get; init; } = true;
+    public bool PauseOnSnapshot { get; init; } = true;
+
 
     //用于保存排序规则
     public string? SortColumn { get; init; }
@@ -97,7 +99,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [ObservableProperty] private bool _isLocked;
     [ObservableProperty] private bool _isNotificationVisible;
     [ObservableProperty] private bool _isPaused;
+
     [ObservableProperty] private bool _isPauseOnExitEnabled = true;
+
+    //控制进入快照时是否暂停服务的选项，默认为 true
+    [ObservableProperty] private bool _isPauseOnSnapshotEnabled = true;
     [ObservableProperty] private bool _isSettingsVisible;
     [ObservableProperty] private bool _isSmartIdleModeEnabled;
     private DateTime _lastCombatActivityTime;
@@ -279,6 +285,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                     BackendUrl = state.BackendUrl;
                     UiUpdateInterval = state.UiUpdateInterval;
                     IsPauseOnExitEnabled = state.PauseOnExit;
+                    IsPauseOnSnapshotEnabled = state.PauseOnSnapshot;
 
                     //加载已保存的排序设置
                     if (!string.IsNullOrEmpty(state.SortColumn))
@@ -317,6 +324,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 UiUpdateInterval = UiUpdateInterval,
                 CultureName = Localization.CurrentCulture.Name,
                 PauseOnExit = IsPauseOnExitEnabled,
+                PauseOnSnapshot = IsPauseOnSnapshotEnabled,
                 //保存当前的排序设置
                 SortColumn = SortColumn,
                 SortDirection = SortDirection
@@ -550,7 +558,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
 
             var json = JsonSerializer.Serialize(snapshot, SnapshotSerializerOptions);
-            
+
             await File.WriteAllTextAsync(filePath, json, Encoding.UTF8);
             ShowNotification($"快照已保存: {fileName}");
         }
@@ -582,7 +590,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 return;
             }
 
-            await _apiService.SetPauseStateAsync(true);
+            if (IsPauseOnSnapshotEnabled)
+            {
+                await _apiService.SetPauseStateAsync(true);
+            }
+
             _apiService.DataReceived -= OnDataReceived;
 
             _fightTimer.Stop();
@@ -770,7 +782,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     /// </summary>
     private void UpdatePlayerList()
     {
-        if (IsSmartIdleModeEnabled)
+        // 仅当处于实时模式且用户启用了闲置模式时，才计算玩家的闲置状态
+        if (IsSmartIdleModeEnabled && !IsInSnapshotMode)
         {
             var now = DateTime.UtcNow;
             foreach (var player in _playerCache.Values)
@@ -895,8 +908,37 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         {
             IsInSnapshotMode = false;
             LoadedSnapshotFileName = "";
+
+            // 新增：在返回实时模式前，彻底重置战斗状态
+            _fightTimer.Stop();
+            _elapsedSeconds = 0;
+            FightDurationText = "0:00";
+            _isFightActive = false; // 这是最关键的修复
+            _lastCombatActivityTime = DateTime.MinValue;
+
+            // 清空当前的快照数据
+            Players.Clear();
+            _playerCache.Clear();
+            OnPropertyChanged(nameof(PlayerCount));
+
+            // 重新订阅实时数据事件
             _apiService.DataReceived += OnDataReceived;
-            await ConnectToBackendAsync(); // 重新连接
+
+            // 向后端服务发送“恢复”指令，并同步本地UI状态
+            await _apiService.SetPauseStateAsync(false);
+            IsPaused = false;
+
+            // 像程序启动时一样，主动获取一次当前数据
+            // 后续的数据更新将通过 UiUpdateTimer_Tick 自动触发计时器启动
+            var initialData = await _apiService.GetInitialDataAsync();
+            if (initialData != null)
+            {
+                await ProcessData(initialData);
+            }
+
+            // 确保WebSocket连接也已恢复
+            await _apiService.ConnectAsync();
+            ShowNotification("已返回实时模式");
             return;
         }
 

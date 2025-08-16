@@ -367,31 +367,32 @@
                                 <Setter Property="Foreground" Value="White" />
                             </Style>
                         </Border.Resources>
+
                         <StackPanel>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                    <CheckBox Content="{Binding Localization[SmartIdleMode]}"
-                                              IsChecked="{Binding IsSmartIdleModeEnabled, Mode=TwoWay}"
-                                              Foreground="White" VerticalAlignment="Center"
-                                              ToolTip="{Binding Localization[SmartIdleMode_Tooltip]}" />
+                            <WrapPanel Orientation="Horizontal">
+                                <CheckBox Content="{Binding Localization[SmartIdleMode]}"
+                                          IsChecked="{Binding IsSmartIdleModeEnabled, Mode=TwoWay}"
+                                          Foreground="White" VerticalAlignment="Center"
+                                          ToolTip="{Binding Localization[SmartIdleMode_Tooltip]}"
+                                          MinWidth="165" />
 
-                                    <CheckBox Content="{Binding Localization[PauseOnExit]}"
-                                              IsChecked="{Binding IsPauseOnExitEnabled, Mode=TwoWay}"
-                                              Foreground="White" VerticalAlignment="Center"
-                                              Margin="20,0,0,0" />
-                                </StackPanel>
+                                <CheckBox Content="{Binding Localization[PauseOnExit]}"
+                                          IsChecked="{Binding IsPauseOnExitEnabled, Mode=TwoWay}"
+                                          Foreground="White" VerticalAlignment="Center"
+                                          Margin="10,0,0,0"
+                                          MinWidth="165" />
 
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                                <CheckBox Content="{Binding Localization[PauseOnSnapshot]}"
+                                          IsChecked="{Binding IsPauseOnSnapshotEnabled, Mode=TwoWay}"
+                                          Foreground="White" VerticalAlignment="Center"
+                                          Margin="10,0,20,0"
+                                          MinWidth="165" />
+
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Localization[FontSize]}" Foreground="White"
-                                               VerticalAlignment="Center"
-                                               Margin="0,0,5,0"
+                                               VerticalAlignment="Center" Margin="0,0,5,0"
                                                FontFamily="{Binding SelectedFontFamily}"
                                                FontSize="{Binding FontSize, Mode=OneWay}" />
-
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
@@ -406,7 +407,6 @@
                                                     Style="{StaticResource UpDownButtonStyle}" Margin="0,1,0,0" />
                                         </StackPanel>
                                     </Grid>
-
                                     <ComboBox ItemsSource="{Binding SystemFonts}"
                                               SelectedItem="{Binding SelectedFontFamily, Mode=TwoWay}"
                                               Width="160" Margin="10,0,0,0" VerticalAlignment="Center">
@@ -419,7 +419,7 @@
                                         </ComboBox.ItemTemplate>
                                     </ComboBox>
                                 </StackPanel>
-                            </Grid>
+                            </WrapPanel>
 
                             <TextBlock Text="{Binding Localization[WindowOpacity]}" Foreground="White"
                                        Margin="0,10,0,0" />
@@ -441,6 +441,7 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="2*" />
                                     <ColumnDefinition Width="1*" />
+                                    <ColumnDefinition Width="1*" />
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel Grid.Column="0" Margin="0,0,10,0">
@@ -458,7 +459,7 @@
                                     </Grid>
                                 </StackPanel>
 
-                                <StackPanel Grid.Column="1">
+                                <StackPanel Grid.Column="1" Margin="0,0,10,0">
                                     <TextBlock Text="{Binding Localization[UIRefreshInterval]}" Foreground="White" />
                                     <ComboBox SelectedItem="{Binding UiUpdateInterval}">
                                         <sys:Int32>100</sys:Int32>
@@ -466,12 +467,14 @@
                                         <sys:Int32>500</sys:Int32>
                                     </ComboBox>
                                 </StackPanel>
-                            </Grid>
 
-                            <TextBlock Text="{Binding Localization[Language]}" Foreground="White" Margin="0,10,0,0" />
-                            <ComboBox ItemsSource="{Binding Localization.SupportedLanguages}"
-                                      SelectedItem="{Binding Localization.CurrentCulture, Mode=TwoWay}"
-                                      DisplayMemberPath="Parent.NativeName" />
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="{Binding Localization[Language]}" Foreground="White" />
+                                    <ComboBox ItemsSource="{Binding Localization.SupportedLanguages}"
+                                              SelectedItem="{Binding Localization.CurrentCulture, Mode=TwoWay}"
+                                              DisplayMemberPath="Parent.NativeName" />
+                                </StackPanel>
+                            </Grid>
                         </StackPanel>
                     </Border>
                 </Grid>
