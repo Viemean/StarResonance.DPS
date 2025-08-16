@@ -568,9 +568,33 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     private async Task FetchAndProcessSkillDataAsync(PlayerViewModel player)
     {
-        // 如果处于快照模式，则不主动获取数据
-        if (IsInSnapshotMode) return;
+        //增加快照模式下的逻辑
+        if (IsInSnapshotMode)
+        {
+            // 在快照模式下，从已加载的 RawSkillData 填充技能列表
+            await Application.Current.Dispatcher.InvokeAsync(() => player.Skills.Clear());
 
+            if (player.RawSkillData?.Skills != null)
+            {
+                var playerTotalValue = player.TotalDamage + player.TotalHealing;
+                var skills = player.RawSkillData.Skills.Values
+                    .OrderByDescending(s => s.TotalDamage)
+                    .Take(6)
+                    .Select(s => new SkillViewModel(s, playerTotalValue));
+
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    foreach (var skillVm in skills)
+                    {
+                        player.Skills.Add(skillVm);
+                    }
+                });
+            }
+
+            return; // 快照模式处理完毕，直接返回
+        }
+
+        // 实时模式的逻辑
         try
         {
             player.IsFetchingSkillData = true;
@@ -580,28 +604,29 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             var skillDataResponse = await _apiService.GetSkillDataAsync(player.Uid);
             if (skillDataResponse?.Data != null)
             {
-                //将新获取的数据赋给玩家，这会更新等级、血量等
                 player.RawSkillData = skillDataResponse.Data;
                 player.LastSkillDataFetchTime = DateTime.UtcNow;
                 player.NotifyTooltipUpdate();
 
-                var playerTotalValue = player.TotalDamage + player.TotalHealing;
-                var skills = skillDataResponse.Data.Skills.Values
-                    .OrderByDescending(s => s.TotalDamage)
-                    .Take(6)
-                    .Select(s => new SkillViewModel(s, playerTotalValue));
-
-                await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    player.Skills.Clear();
-                    foreach (var skillVm in skills)
-                    {
-                        player.Skills.Add(skillVm);
-                    }
-                });
+                    var playerTotalValue = player.TotalDamage + player.TotalHealing;
+                    var skills = skillDataResponse.Data.Skills.Values
+                        .OrderByDescending(s => s.TotalDamage)
+                        .Take(6)
+                        .Select(s => new SkillViewModel(s, playerTotalValue));
 
-                player.CalculateAccurateCritDamage(skillDataResponse.Data.Skills);
-                player.CalculateAccurateCritHealing(skillDataResponse.Data.Skills);
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        player.Skills.Clear();
+                        foreach (var skillVm in skills)
+                        {
+                            player.Skills.Add(skillVm);
+                        }
+                    });
+
+                    player.CalculateAccurateCritDamage(skillDataResponse.Data.Skills);
+                    player.CalculateAccurateCritHealing(skillDataResponse.Data.Skills);
+                }
             }
         }
         catch (Exception ex)
@@ -748,7 +773,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
             if (dataToProcess != null)
             {
-
                 var changes = ProcessDataChanges(dataToProcess);
 
                 // 如果有任何有效的数据变化（伤害、治疗等）
@@ -841,7 +865,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                     newPlayerCache.Add(key, playerVm);
                     newPlayerEntryTimes.Add(key, DateTime.UtcNow);
                     _ = FetchInitialSkillDataAsync(playerVm);
-
                 }
 
                 // 更新数据并添加到临时列表
@@ -907,7 +930,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 Players.Add(playerVm);
                 _playerEntryTimes.Add(key, DateTime.UtcNow);
                 _ = FetchInitialSkillDataAsync(playerVm);
-                
+
                 hasDataChanged = true;
                 playerVm.LastActiveTime = DateTime.UtcNow;
             }
@@ -1046,6 +1069,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         }
 
         ApplySorting();
+        UpdatePlayerList();
     }
 
     [RelayCommand]

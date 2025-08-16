@@ -94,11 +94,6 @@ public partial class PlayerViewModel(
             }
 
             OnPropertyChanged(nameof(ExpandedVisibility)); // 通知UI更新
-            // 当 IsExpanded 被设置为折叠时清空技能和分析数据
-            if (value) return;
-            if (Skills.Count > 0) Skills.Clear();
-            AccurateCritDamageText = null;
-            AccurateCritHealingText = null;
         }
     }
 
