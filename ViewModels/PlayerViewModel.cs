@@ -235,7 +235,7 @@ public partial class PlayerViewModel(
             s.Type == "治疗" &&
             s.CountBreakdown.Normal >= minSamples &&
             s.CountBreakdown.Critical >= minSamples).ToList();
-        
+
         foreach (var skill in validSkills)
         {
             var avgNormal = skill.DamageBreakdown.Normal / skill.CountBreakdown.Normal;
@@ -243,7 +243,7 @@ public partial class PlayerViewModel(
 
             var totalCritHealing = skill.DamageBreakdown.Critical + skill.DamageBreakdown.CritLucky;
             var avgCrit = totalCritHealing / skill.CountBreakdown.Critical;
-        
+
             // 记录每个技能的暴疗倍率及其权重（权重为该技能的总治疗量）
             multipliers.Add((avgCrit / avgNormal, skill.TotalDamage));
         }
@@ -268,8 +268,10 @@ public partial class PlayerViewModel(
         {
             AccurateCritHealingText = localizationService["NotApplicable"] ?? "数据不足";
         }
+
         OnPropertyChanged(nameof(CritHealingVisibility));
     }
+
     [RelayCommand]
     private void CopyData()
     {
@@ -282,6 +284,13 @@ public partial class PlayerViewModel(
         {
             notificationService.ShowNotification(localizationService["CopyFailed"] ?? "复制失败: 无法访问剪贴板");
         }
+    }
+
+    [ObservableProperty] private bool _isLoadingSkills;
+
+    public void SetLoadingSkills(bool isLoading)
+    {
+        IsLoadingSkills = isLoading;
     }
 
     public void Update(UserData data, int rank, string fightDuration)

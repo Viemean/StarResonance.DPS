@@ -48,14 +48,14 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     private static readonly Dictionary<string, Func<PlayerViewModel, IComparable>> Sorters = new()
     {
-        { SortableColumns.Name, p => p.DisplayName },
-        { SortableColumns.FightPoint, p => p.FightPoint },
-        { SortableColumns.Profession, p => p.Profession },
-        { SortableColumns.TotalDamage, p => p.TotalDamage },
-        { SortableColumns.TotalHealing, p => p.TotalHealing },
-        { SortableColumns.TotalDps, p => p.TotalDps },
-        { SortableColumns.TotalHps, p => p.TotalHps },
-        { SortableColumns.TakenDamage, p => p.TakenDamage }
+        [SortableColumns.Name] = p => p.DisplayName,
+        [SortableColumns.FightPoint] = p => p.FightPoint,
+        [SortableColumns.Profession] = p => p.Profession,
+        [SortableColumns.TotalDamage] = p => p.TotalDamage,
+        [SortableColumns.TotalHealing] = p => p.TotalHealing,
+        [SortableColumns.TotalDps] = p => p.TotalDps,
+        [SortableColumns.TotalHps] = p => p.TotalHps,
+        [SortableColumns.TakenDamage] = p => p.TakenDamage
     };
 
     // 新增：缓存并重用 JsonSerializerOptions 实例以优化性能
@@ -500,26 +500,28 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [RelayCommand]
     private async Task TogglePlayerExpansion(PlayerViewModel player)
     {
+        // 如果点击的玩家已经展开，则将其折叠
+        if (player.IsExpanded)
+        {
+            player.IsExpanded = false;
+            _expandedPlayer = null;
+            return;
+        }
+
         // 如果当前有其他玩家处于展开状态，先将其折叠
         if (_expandedPlayer is not null && _expandedPlayer != player)
         {
             _expandedPlayer.IsExpanded = false;
         }
 
-        // 切换被点击玩家的展开/折叠状态
-        player.IsExpanded = !player.IsExpanded;
+        // 展开被点击的玩家
+        player.IsExpanded = true;
+        _expandedPlayer = player;
 
-        // 根据切换后的状态执行相应操作
-        if (player.IsExpanded)
+        // 仅当技能数据尚未加载时才发起网络请求
+        if (player.RawSkillData == null)
         {
-            // 如果是展开，则记录当前展开的玩家，并加载其技能数据
-            _expandedPlayer = player;
             await LoadSkillData(player);
-        }
-        else
-        {
-            // 如果是折叠，则清空记录
-            _expandedPlayer = null;
         }
     }
 
@@ -535,10 +537,13 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
         try
         {
+            // 增加一个正在加载的提示
+            player.SetLoadingSkills(true);
+
             var skillDataResponse = await _apiService.GetSkillDataAsync(player.Uid);
             if (skillDataResponse?.Data?.Skills != null)
             {
-                // 存储原始技能数据以备快照
+                // 存储原始技能数据以备快照和缓存
                 player.RawSkillData = skillDataResponse.Data;
 
                 var playerTotalValue = player.TotalDamage + player.TotalHealing;
@@ -550,7 +555,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     player.Skills.Clear();
-                    foreach (var skillVm in skills) player.Skills.Add(skillVm);
+                    foreach (var skillVm in skills)
+                    {
+                        player.Skills.Add(skillVm);
+                    }
                 });
 
                 player.CalculateAccurateCritDamage(skillDataResponse.Data.Skills);
@@ -561,6 +569,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         {
             Debug.WriteLine($"Failed to load skill data: {ex.Message}");
             ShowNotification("加载技能数据失败");
+        }
+        finally
+        {
+            player.SetLoadingSkills(false);
         }
     }
 
@@ -690,51 +702,36 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             _latestReceivedData = null;
         }
 
-        if (dataToProcess == null) return;
-
-        // 此方法现在只负责一件事：检查是否有变化，并更新时间戳
-        var hasChanged = false;
-        if (dataToProcess.User is { Count: > 0 })
+        if (dataToProcess == null)
         {
-            if (dataToProcess.User.Count != _playerCache.Count) hasChanged = true;
-            else
-                foreach (var (key, newUserData) in dataToProcess.User)
-                {
-                    if (_playerCache.TryGetValue(key, out var playerVm))
-                    {
-                        if (!(Math.Abs(playerVm.TotalDamage - newUserData.TotalDamage.Total) > 1E-6) &&
-                            !(Math.Abs(playerVm.TotalHealing - newUserData.TotalHealing.Total) > 1E-6) &&
-                            !(Math.Abs(playerVm.TakenDamage - newUserData.TakenDamage) > 1E-6)) continue;
-                        hasChanged = true;
-                        break;
-                    }
-
-                    if (!(newUserData.TotalDamage.Total > 0) && !(newUserData.TotalHealing.Total > 0) &&
-                        !(newUserData.TakenDamage > 0)) continue;
-                    hasChanged = true;
-                    break;
-                }
+            return;
         }
 
-        if (hasChanged)
+        // 将数据处理任务转移到后台线程
+        await Task.Run(async () =>
         {
-            _lastCombatActivityTime = DateTime.UtcNow;
-            // 战斗首次启动
-            if (!_isFightActive && !IsPaused)
+            var hasChanged = ProcessDataChanges(dataToProcess);
+
+            if (hasChanged)
             {
-                _isFightActive = true;
-                if (!_fightTimer.IsEnabled) _fightTimer.Start();
+                _lastCombatActivityTime = DateTime.UtcNow;
+                if (!_isFightActive && !IsPaused)
+                {
+                    _isFightActive = true;
+                    // 在UI线程上启动计时器
+                    await Application.Current.Dispatcher.InvokeAsync(() => _fightTimer.Start());
+                }
             }
-        }
 
-        // 处理主玩家列表数据
-        await ProcessData(dataToProcess);
+            // 处理主玩家列表数据
+            await ProcessData(dataToProcess);
 
-        // 如果有玩家的详情处于展开状态，则同样刷新其技能数据
-        if (_expandedPlayer is { IsExpanded: true })
-        {
-            await LoadSkillData(_expandedPlayer);
-        }
+            // 如果有玩家的详情处于展开状态，则刷新其技能数据
+            if (_expandedPlayer is { IsExpanded: true })
+            {
+                await LoadSkillData(_expandedPlayer);
+            }
+        });
     }
 
     public async Task InitializeAsync()
@@ -816,6 +813,39 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         {
             Debug.WriteLine($"Error processing data: {e}");
         }
+    }
+
+    private bool ProcessDataChanges(ApiResponse dataToProcess)
+    {
+        if (dataToProcess.User is not { Count: > 0 })
+        {
+            return false;
+        }
+
+        if (dataToProcess.User.Count != _playerCache.Count)
+        {
+            return true;
+        }
+
+        foreach (var (key, newUserData) in dataToProcess.User)
+        {
+            if (_playerCache.TryGetValue(key, out var playerVm))
+            {
+                if (Math.Abs(playerVm.TotalDamage - newUserData.TotalDamage.Total) > 1E-6 ||
+                    Math.Abs(playerVm.TotalHealing - newUserData.TotalHealing.Total) > 1E-6 ||
+                    Math.Abs(playerVm.TakenDamage - newUserData.TakenDamage) > 1E-6)
+                {
+                    return true;
+                }
+            }
+            else if (newUserData.TotalDamage.Total > 0 || newUserData.TotalHealing.Total > 0 ||
+                     newUserData.TakenDamage > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
