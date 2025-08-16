@@ -92,6 +92,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CountdownRunningVisibility))]
     [NotifyPropertyChangedFor(nameof(RealtimeModeVisibility))]
+    [NotifyPropertyChangedFor(nameof(FightDurationVisibility))] 
     // 倒计时按钮的可见性也受此影响
     private bool _isCountdownRunning;
 
@@ -151,7 +152,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     public Visibility RealtimeModeVisibility => IsInSnapshotMode ? Visibility.Collapsed : Visibility.Visible;
     public Visibility CountdownRunningVisibility => IsCountdownRunning ? Visibility.Visible : Visibility.Collapsed;
     public Visibility PauseStatusVisibility => IsPaused ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility FightDurationVisibility => !IsPaused ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility FightDurationVisibility => !IsPaused && !IsCountdownRunning ? Visibility.Visible : Visibility.Collapsed;
     public Visibility NotificationVisibility => IsNotificationVisible ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SettingsVisibility => IsSettingsVisible ? Visibility.Visible : Visibility.Collapsed;
     public bool IsHitTestVisible => !IsLocked;
@@ -648,7 +649,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             ShowNotification($"保存失败: {ex.Message}");
         }
     }
-    
+
     [RelayCommand]
     private async Task LoadSnapshotAsync()
     {
@@ -740,9 +741,23 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
             if (dataToProcess != null)
             {
-                var listChanged = ProcessDataChanges(dataToProcess);
-                // 仅当有玩家“唤醒”或列表结构发生变化时，才立即刷新列表
-                if (listChanged)
+                // ProcessDataChanges 现在会返回一个详细的结果对象
+                var changes = ProcessDataChanges(dataToProcess);
+
+                // 如果有任何有效的数据变化（伤害、治疗等）
+                if (changes.HasDataChanged)
+                {
+                    _lastCombatActivityTime = DateTime.UtcNow; // 更新最后活跃时间
+                    // 如果战斗计时器未运行且当前非暂停状态，则启动计时器
+                    if (!_isFightActive && !IsPaused)
+                    {
+                        _isFightActive = true;
+                        _fightTimer.Start();
+                    }
+                }
+
+                // 如果有玩家“唤醒”或列表结构发生变化，才立即刷新列表
+                if (changes.ListNeedsRefresh)
                 {
                     UpdatePlayerList();
                 }
@@ -837,10 +852,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         }
     }
 
-    private bool ProcessDataChanges(ApiResponse data)
+    private (bool HasDataChanged, bool ListNeedsRefresh) ProcessDataChanges(ApiResponse data)
     {
         var listStructureChanged = false;
         var aPlayerWokeUp = false;
+        var hasDataChanged = false; // 追踪是否有数据变化
 
         var activeKeys = new HashSet<string>(data.User.Keys);
 
@@ -865,7 +881,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         {
             long.TryParse(key, out var uid);
 
-            // 使用 if-else 结构明确 playerVm 的作用域
+            // 使用 if-else 结构明确 playerVm 的作用域，彻底解决null引用警告
             if (!_playerCache.TryGetValue(key, out var playerVm))
             {
                 // Case 1: 新玩家
@@ -875,10 +891,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 Players.Add(playerVm);
                 _playerEntryTimes.Add(key, DateTime.UtcNow);
 
-                // 新玩家的数据肯定有变化，直接更新活跃时间
+                // 新玩家的数据肯定有变化
+                hasDataChanged = true;
                 playerVm.LastActiveTime = DateTime.UtcNow;
-
-                // 新玩家的 IsIdle 默认为 false，无需检查唤醒
             }
             else
             {
@@ -888,6 +903,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                     Math.Abs(playerVm.TotalHealing - userData.TotalHealing.Total) > 1E-6 ||
                     Math.Abs(playerVm.TakenDamage - userData.TakenDamage) > 1E-6)
                 {
+                    hasDataChanged = true;
                     playerVm.LastActiveTime = DateTime.UtcNow;
 
                     // 检查玩家是否从闲置状态被唤醒
@@ -908,8 +924,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             OnPropertyChanged(nameof(PlayerCount));
         }
 
-        // 如果有玩家被唤醒或列表结构变化，返回true以触发立即刷新
-        return aPlayerWokeUp || listStructureChanged;
+        // 返回一个包含两个布尔值的元组
+        return (hasDataChanged, aPlayerWokeUp || listStructureChanged);
     }
 
     /// <summary>
@@ -1025,42 +1041,46 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             IsInSnapshotMode = false;
             LoadedSnapshotFileName = "";
 
-            // 新增：在返回实时模式前，彻底重置战斗状态
             _fightTimer.Stop();
             _elapsedSeconds = 0;
             FightDurationText = "0:00";
-            _isFightActive = false; // 这是最关键的修复
+            _isFightActive = false;
             _lastCombatActivityTime = DateTime.MinValue;
 
-            // 清空当前的快照数据
             Players.Clear();
             _playerCache.Clear();
-            OnPropertyChanged(nameof(PlayerCount)); // 此处会正确地将计数更新为0
+            OnPropertyChanged(nameof(PlayerCount));
 
-            // 重新订阅实时数据事件
             _apiService.DataReceived += OnDataReceived;
-            _uiUpdateTimer.Start(); // 重新启动UI刷新计时器
+            _uiUpdateTimer.Start();
 
-            // 向后端服务发送“恢复”指令，并同步本地UI状态
             await _apiService.SetPauseStateAsync(false);
             IsPaused = false;
 
-            // 像程序启动时一样，主动获取一次当前数据
-            // 后续的数据更新将通过 UiUpdateTimer_Tick 自动触发计时器启动
             var initialData = await _apiService.GetInitialDataAsync();
             if (initialData != null)
             {
-                var listChanged = ProcessDataChanges(initialData);
-                if (listChanged)
+                var changes = ProcessDataChanges(initialData);
+
+                // 新增：根据初次获取的数据直接启动计时器
+                if (changes.HasDataChanged)
+                {
+                    _lastCombatActivityTime = DateTime.UtcNow;
+                    if (!_isFightActive && !IsPaused)
+                    {
+                        _isFightActive = true;
+                        _fightTimer.Start();
+                    }
+                }
+
+                if (changes.ListNeedsRefresh)
                 {
                     UpdatePlayerList();
                 }
             }
 
-            // 新增：在处理完初始数据后，再次通知UI更新PlayerCount，确保显示最新总数
             OnPropertyChanged(nameof(PlayerCount));
 
-            // 确保WebSocket连接也已恢复
             await _apiService.ConnectAsync();
             ShowNotification("已返回实时模式");
             return;
@@ -1077,7 +1097,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             {
                 Players.Clear();
                 _playerCache.Clear();
-                OnPropertyChanged(nameof(PlayerCount)); // 重置实时数据时也通知更新
+                OnPropertyChanged(nameof(PlayerCount));
             });
         else
             ShowNotification("重置数据失败");
