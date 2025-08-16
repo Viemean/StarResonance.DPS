@@ -8,6 +8,7 @@
         xmlns:viewModels="clr-namespace:StarResonance.DPS.ViewModels"
         xmlns:tb="http://www.hardcodet.net/taskbar"
         xmlns:views="clr-namespace:StarResonance.DPS.Views"
+        xmlns:behaviors="clr-namespace:StarResonance.DPS.Behaviors"
         xmlns:converters="clr-namespace:StarResonance.DPS.Converters"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=viewModels:MainViewModel, IsDesignTimeCreatable=True}"
@@ -235,7 +236,8 @@
                               VirtualizingStackPanel.IsVirtualizing="True"
                               VirtualizingStackPanel.VirtualizationMode="Recycling"
                               ScrollViewer.VerticalScrollBarVisibility="Hidden"
-                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              behaviors:SmoothScrollViewerBehavior.IsEnabled="True">
 
                         <ListView.ItemsPanel>
                             <ItemsPanelTemplate>

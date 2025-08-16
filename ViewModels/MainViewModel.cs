@@ -240,13 +240,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         IsCustomCountdownPopupOpen = false;
     }
 
-    partial void OnSelectedFontFamilyChanged(FontFamily? oldValue, FontFamily newValue)
-    {
-        if (!SystemFonts.Any(f => f.Source.Equals(newValue.Source, StringComparison.OrdinalIgnoreCase)))
-            Application.Current.Dispatcher.InvokeAsync(() =>
-                SelectedFontFamily = oldValue ?? new FontFamily("Microsoft YaHei"));
-    }
-
     private void LoadState()
     {
         try
