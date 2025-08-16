@@ -181,4 +181,10 @@
   <data name="AccurateCritHealingLabel" xml:space="preserve">
     <value>Crit Heal Bonus (Analyzed Val):</value>
   </data>
+  <data name="Tooltip_MaxCountdown" xml:space="preserve">
+    <value>Maximum value: 60 minutes</value>
+  </data>
+  <data name="Error_InvalidCountdownMinutes" xml:space="preserve">
+    <value>Please enter a valid number of minutes (1-60)</value>
+  </data>
 </root>

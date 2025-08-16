@@ -180,4 +180,10 @@
     <data name="PauseOnSnapshot" xml:space="preserve">
     <value>进入快照时暂停服务</value>
   </data>
+  <data name="Tooltip_MaxCountdown" xml:space="preserve">
+    <value>最大可接受60分钟</value>
+  </data>
+  <data name="Error_InvalidCountdownMinutes" xml:space="preserve">
+    <value>请输入一个有效的分钟数 (1-60)</value>
+  </data>
 </root>

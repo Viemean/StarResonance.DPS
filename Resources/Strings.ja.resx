@@ -180,4 +180,10 @@
   <data name="AccurateCritHealingLabel" xml:space="preserve">
     <value>クリヒールボーナス（分析値）：</value>
   </data>
+  <data name="Tooltip_MaxCountdown" xml:space="preserve">
+    <value>最大値: 60分</value>
+  </data>
+  <data name="Error_InvalidCountdownMinutes" xml:space="preserve">
+    <value>有効な分数（1～60）を入力してください</value>
+  </data>
 </root>

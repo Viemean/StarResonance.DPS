@@ -174,6 +174,16 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     public bool IsHitTestVisible => !IsLocked;
     public double FontOpacity => WindowOpacity < 0.8 ? 0.8 : WindowOpacity;
 
+    partial void OnCustomCountdownMinutesChanged(string value)
+    {
+
+        if (double.TryParse(value, out var minutes))
+        {
+            if (!(minutes > 60)) return;
+            _customCountdownMinutes = "60";
+            OnPropertyChanged(nameof(CustomCountdownMinutes));
+        }
+    }
     public MainViewModel(ApiService apiService, LocalizationService localizationService)
     {
         _skillUpdateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -324,22 +334,17 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         IsCustomCountdownPopupOpen = true;
     }
 
-    /// <summary>
-    ///     开始一个自定义时间的倒计时。
-    /// </summary>
     [RelayCommand]
     private async Task StartCustomCountdown()
     {
-        try
+        if (double.TryParse(CustomCountdownMinutes, out var minutes) && minutes is > 0 and <= 60)
         {
-            if (double.TryParse(CustomCountdownMinutes, out var minutes) && minutes > 0)
-                await StartCountdown(((int)(minutes * 60)).ToString());
-            else
-                ShowNotification("请输入有效的分钟数");
-        }
-        finally
-        {
+            await StartCountdown(((int)(minutes * 60)).ToString());
             IsCustomCountdownPopupOpen = false;
+        }
+        else
+        {
+            ShowNotification(Localization["Error_InvalidCountdownMinutes"] ?? "请输入一个有效的分钟数 (1-60)");
         }
     }
 
