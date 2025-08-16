@@ -168,13 +168,13 @@
     <data name="PauseOnExit" xml:space="preserve">
     <value>終了時サービス停止</value>
   </data>
-  <data name="AccurateCritDamageLabel" xml:space="preserve">
+    <data name="AccurateCritDamageLabel" xml:space="preserve">
     <value>クリダメボーナス（分析値）：</value>
   </data>
-  <data name="NotApplicable" xml:space="preserve">
+    <data name="NotApplicable" xml:space="preserve">
     <value>適用外</value>
   </data>
-  <data name="PauseOnSnapshot" xml:space="preserve">
+    <data name="PauseOnSnapshot" xml:space="preserve">
     <value>スナップショット時停止</value>
   </data>
 </root>

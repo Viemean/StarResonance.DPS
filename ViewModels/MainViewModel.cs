@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Data;
@@ -11,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Win32;
 using StarResonance.DPS.Models;
 using StarResonance.DPS.Services;
 
@@ -41,10 +43,6 @@ public class AppState
 /// </summary>
 public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotificationService
 {
-    [ObservableProperty] private bool _isInSnapshotMode;
-
-    [ObservableProperty] private string _loadedSnapshotFileName = "";
-
     //闲置时长
     private const int IdleTimeoutSeconds = 30;
 
@@ -60,6 +58,13 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         { SortableColumns.TakenDamage, p => p.TakenDamage }
     };
 
+    // 新增：缓存并重用 JsonSerializerOptions 实例以优化性能
+    private static readonly JsonSerializerOptions SnapshotSerializerOptions = new()
+    {
+        WriteIndented = true,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
+
     private readonly ApiService _apiService;
     private readonly DispatcherTimer _clockTimer;
     private readonly object _dataLock = new();
@@ -72,13 +77,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     private readonly DispatcherTimer _stateSaveTimer;
 
     private readonly DispatcherTimer _uiUpdateTimer;
-
-    // 新增：缓存并重用 JsonSerializerOptions 实例以优化性能
-    private static readonly JsonSerializerOptions SnapshotSerializerOptions = new()
-    {
-        WriteIndented = true,
-        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-    };
 
     [ObservableProperty] private string _backendUrl = "ws://localhost:8989";
     [ObservableProperty] private Brush _connectionStatusColor = Brushes.Orange;
@@ -96,6 +94,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [ObservableProperty] private bool _isCountdownRunning;
     [ObservableProperty] private bool _isCustomCountdownPopupOpen;
     private bool _isFightActive;
+    [ObservableProperty] private bool _isInSnapshotMode;
     [ObservableProperty] private bool _isLocked;
     [ObservableProperty] private bool _isNotificationVisible;
     [ObservableProperty] private bool _isPaused;
@@ -108,6 +107,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [ObservableProperty] private bool _isSmartIdleModeEnabled;
     private DateTime _lastCombatActivityTime;
     private ApiResponse? _latestReceivedData;
+
+    [ObservableProperty] private string _loadedSnapshotFileName = "";
     [ObservableProperty] private string _lockIconContent = "🔓";
     [ObservableProperty] private string _lockMenuHeaderText = "锁定";
     [ObservableProperty] private string _notificationText = "";
@@ -192,6 +193,14 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         GC.SuppressFinalize(this);
     }
 
+    public void ShowNotification(string message)
+    {
+        NotificationText = message;
+        IsNotificationVisible = true;
+        _notificationTimer.Stop();
+        _notificationTimer.Start();
+    }
+
     private void OnApiServiceConnected()
     {
         ConnectionStatusText = Localization["Connected"] ?? "已连接";
@@ -202,14 +211,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     {
         ConnectionStatusText = Localization["Disconnected"] ?? "已断开";
         ConnectionStatusColor = Brushes.Red;
-    }
-
-    public void ShowNotification(string message)
-    {
-        NotificationText = message;
-        IsNotificationVisible = true;
-        _notificationTimer.Stop();
-        _notificationTimer.Start();
     }
 
     /// <summary>
@@ -465,10 +466,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [RelayCommand]
     private async Task TogglePlayerExpansion(PlayerViewModel player)
     {
-        if (_expandedPlayer != null && _expandedPlayer != player)
-        {
-            _expandedPlayer.IsExpanded = false;
-        }
+        if (_expandedPlayer != null && _expandedPlayer != player) _expandedPlayer.IsExpanded = false;
 
         if (player.IsExpanded)
         {
@@ -536,10 +534,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         foreach (var player in _playerCache.Values.Where(p => p.RawSkillData == null))
         {
             var skillData = await _apiService.GetSkillDataAsync(player.Uid);
-            if (skillData?.Data != null)
-            {
-                player.RawSkillData = skillData.Data;
-            }
+            if (skillData?.Data != null) player.RawSkillData = skillData.Data;
         }
 
         var snapshot = new SnapshotData
@@ -571,7 +566,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [RelayCommand]
     private async Task LoadSnapshotAsync()
     {
-        var openFileDialog = new Microsoft.Win32.OpenFileDialog
+        var openFileDialog = new OpenFileDialog
         {
             Filter = "JSON Files (*.json)|*.json|All files (*.*)|*.*",
             InitialDirectory = AppDomain.CurrentDomain.BaseDirectory
@@ -590,10 +585,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 return;
             }
 
-            if (IsPauseOnSnapshotEnabled)
-            {
-                await _apiService.SetPauseStateAsync(true);
-            }
+            if (IsPauseOnSnapshotEnabled) await _apiService.SetPauseStateAsync(true);
 
             _apiService.DataReceived -= OnDataReceived;
 
@@ -621,9 +613,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
             var fileNameToShow = Path.GetFileName(openFileDialog.FileName);
             if (fileNameToShow.StartsWith("StarResonance.DPS-"))
-            {
                 fileNameToShow = fileNameToShow["StarResonance.DPS-".Length..];
-            }
 
             LoadedSnapshotFileName = fileNameToShow;
             IsInSnapshotMode = true;
@@ -934,10 +924,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             // 像程序启动时一样，主动获取一次当前数据
             // 后续的数据更新将通过 UiUpdateTimer_Tick 自动触发计时器启动
             var initialData = await _apiService.GetInitialDataAsync();
-            if (initialData != null)
-            {
-                await ProcessData(initialData);
-            }
+            if (initialData != null) await ProcessData(initialData);
 
             // 确保WebSocket连接也已恢复
             await _apiService.ConnectAsync();

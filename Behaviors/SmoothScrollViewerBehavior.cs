@@ -6,7 +6,7 @@ using System.Windows.Media;
 namespace StarResonance.DPS.Behaviors;
 
 /// <summary>
-/// 提供基于物理插值的逐帧平滑滚动行为，以实现极致流畅的滚动体验。
+///     提供基于物理插值的逐帧平滑滚动行为，以实现极致流畅的滚动体验。
 /// </summary>
 public static class SmoothScrollViewerBehavior
 {
@@ -16,20 +16,36 @@ public static class SmoothScrollViewerBehavior
             "IsEnabled", typeof(bool), typeof(SmoothScrollViewerBehavior),
             new PropertyMetadata(false, OnIsEnabledChanged));
 
-    public static bool GetIsEnabled(DependencyObject obj) => (bool)obj.GetValue(IsEnabledProperty);
-    public static void SetIsEnabled(DependencyObject obj, bool value) => obj.SetValue(IsEnabledProperty, value);
-
     // 依赖属性：TargetVerticalOffset (内部使用)
     private static readonly DependencyProperty TargetVerticalOffsetProperty =
         DependencyProperty.RegisterAttached(
             "TargetVerticalOffset", typeof(double), typeof(SmoothScrollViewerBehavior),
             new PropertyMetadata(0.0));
 
-    private static double GetTargetVerticalOffset(DependencyObject obj) =>
-        (double)obj.GetValue(TargetVerticalOffsetProperty);
+    // 为每个UI元素存储其对应的事件处理器，以便正确移除
+    private static readonly DependencyProperty RenderingEventHandlerProperty =
+        DependencyProperty.RegisterAttached("RenderingEventHandler", typeof(EventHandler),
+            typeof(SmoothScrollViewerBehavior));
 
-    private static void SetTargetVerticalOffset(DependencyObject obj, double value) =>
+    public static bool GetIsEnabled(DependencyObject obj)
+    {
+        return (bool)obj.GetValue(IsEnabledProperty);
+    }
+
+    public static void SetIsEnabled(DependencyObject obj, bool value)
+    {
+        obj.SetValue(IsEnabledProperty, value);
+    }
+
+    private static double GetTargetVerticalOffset(DependencyObject obj)
+    {
+        return (double)obj.GetValue(TargetVerticalOffsetProperty);
+    }
+
+    private static void SetTargetVerticalOffset(DependencyObject obj, double value)
+    {
         obj.SetValue(TargetVerticalOffsetProperty, value);
+    }
 
     private static void OnIsEnabledChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
@@ -50,16 +66,15 @@ public static class SmoothScrollViewerBehavior
         }
     }
 
-    // 为每个UI元素存储其对应的事件处理器，以便正确移除
-    private static readonly DependencyProperty RenderingEventHandlerProperty =
-        DependencyProperty.RegisterAttached("RenderingEventHandler", typeof(EventHandler),
-            typeof(SmoothScrollViewerBehavior));
+    private static EventHandler GetRenderingEventHandler(DependencyObject obj)
+    {
+        return (EventHandler)obj.GetValue(RenderingEventHandlerProperty);
+    }
 
-    private static EventHandler GetRenderingEventHandler(DependencyObject obj) =>
-        (EventHandler)obj.GetValue(RenderingEventHandlerProperty);
-
-    private static void SetRenderingEventHandler(DependencyObject obj, EventHandler value) =>
+    private static void SetRenderingEventHandler(DependencyObject obj, EventHandler value)
+    {
         obj.SetValue(RenderingEventHandlerProperty, value);
+    }
 
     private static void OnElementLoaded(object sender, RoutedEventArgs e)
     {
@@ -71,9 +86,7 @@ public static class SmoothScrollViewerBehavior
 
         // 初始化目标偏移量为当前滚动位置
         if (FindVisualChild<ScrollViewer>(element) is { } scrollViewer)
-        {
             SetTargetVerticalOffset(scrollViewer, scrollViewer.VerticalOffset);
-        }
     }
 
     private static void OnElementUnloaded(object sender, RoutedEventArgs e)
@@ -85,10 +98,8 @@ public static class SmoothScrollViewerBehavior
 
     private static void OnPreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        if (sender is not UIElement uiElement || FindVisualChild<ScrollViewer>(uiElement) is not { } scrollViewer)
-        {
-            return;
-        }
+        if (sender is not UIElement uiElement ||
+            FindVisualChild<ScrollViewer>(uiElement) is not { } scrollViewer) return;
 
         // 获取当前的目标位置
         var targetOffset = GetTargetVerticalOffset(scrollViewer);
@@ -111,10 +122,8 @@ public static class SmoothScrollViewerBehavior
 
     private static void Rendering(object sender)
     {
-        if (sender is not FrameworkElement element || FindVisualChild<ScrollViewer>(element) is not { } scrollViewer)
-        {
-            return;
-        }
+        if (sender is not FrameworkElement element ||
+            FindVisualChild<ScrollViewer>(element) is not { } scrollViewer) return;
 
         var currentOffset = scrollViewer.VerticalOffset;
         var targetOffset = GetTargetVerticalOffset(scrollViewer);
@@ -139,16 +148,10 @@ public static class SmoothScrollViewerBehavior
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
         {
             var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is T typedChild)
-            {
-                return typedChild;
-            }
+            if (child is T typedChild) return typedChild;
 
             var childOfChild = FindVisualChild<T>(child);
-            if (childOfChild != null)
-            {
-                return childOfChild;
-            }
+            if (childOfChild != null) return childOfChild;
         }
 
         return null;

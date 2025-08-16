@@ -168,14 +168,14 @@
     <data name="PauseOnExit" xml:space="preserve">
     <value>退出时暂停服务</value>
   </data>
-  <data name="AccurateCritDamageLabel" xml:space="preserve">
+    <data name="AccurateCritDamageLabel" xml:space="preserve">
     <value>暴伤加成 (分析值): </value>
   </data>
 
-  <data name="NotApplicable" xml:space="preserve">
+    <data name="NotApplicable" xml:space="preserve">
     <value>不适用</value>
   </data>
-  <data name="PauseOnSnapshot" xml:space="preserve">
+    <data name="PauseOnSnapshot" xml:space="preserve">
     <value>进入快照时暂停服务</value>
   </data>
 </root>

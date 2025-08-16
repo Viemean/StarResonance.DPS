@@ -1,10 +1,11 @@
-﻿#  星痕共鸣DPS统计
+﻿# 星痕共鸣DPS统计
 
 ![应用截图](Assets/img.png)
 
-一个为《星痕共鸣》设计的轻量级、高颜值的实时伤害与数据统计悬浮窗工具。本工具通过连接到[StarResonanceDamageCounter](https://github.com/dmlgzs/StarResonanceDamageCounter)，可以实时抓取和展示战斗数据，帮助玩家分析团队输出、治疗、承伤等关键指标。
+一个为《星痕共鸣》设计的轻量级、高颜值的实时伤害与数据统计悬浮窗工具。本工具通过连接到[StarResonanceDamageCounter](https://github.com/dmlgzs/StarResonanceDamageCounter)
+，可以实时抓取和展示战斗数据，帮助玩家分析团队输出、治疗、承伤等关键指标。
 
-##  主要功能
+## 主要功能
 
 * **实时数据监控**:
     * **个人数据**: 显示昵称、评分、职业、总伤害、总治疗、总DPS、总HPS和总承伤。
@@ -32,22 +33,28 @@
     * **快速复制**: 点击玩家排名的序号，即可快速复制该玩家的详细统计数据到剪贴板。
     * **系统托盘**: 支持最小化到系统托盘，双击或右键菜单可恢复窗口。
 
-##  安装与运行
+## 安装与运行
 
 ### 1. 安装后端服务 (必需)
+
 本工具只是一个数据显示工具，**必须配合后端服务才能运行！**
+
 * 请前往后端项目地址下载并运行：[StarResonanceDamageCounter](https://github.com/dmlgzs/StarResonanceDamageCounter)
 
 ### 2. 安装 .NET 运行时
-* 本应用基于 .NET 9 框架。请先[安装最新的 .NET 9 桌面运行时](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) (下载 **.NET Desktop Runtime** x64 版本)。
+
+* 本应用基于 .NET 9 框架。请先[安装最新的 .NET 9 桌面运行时](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) (下载
+  **.NET Desktop Runtime** x64 版本)。
 
 ### 3. 下载并运行本应用
+
 * 前往本项目的 [GitHub Releases](https://github.com/Viemean/StarResonance.DPS/releases) 页面。
 * 下载最新版本后直接运行 `StarResonance.DPS.exe` 即可。
 
-##  界面与使用说明
+## 界面与使用说明
 
 ### 顶部标题栏
+
 * **左侧**：
     * `💾`: 导出当前数据为CSV文件。
     * `HH:MM:SS`: 显示当前系统时间。
@@ -63,12 +70,14 @@
     * `⚙️`: 打开/关闭下方的设置面板。
 
 ### 玩家列表
+
 * **表头**: 点击"总伤害"、"总DPS"等表头可以对列表进行排序。
 * **双击**: 双击任意玩家行可以展开/折叠该玩家的技能详情。
 * **点击排名**: 点击第一列的排名数字（如 "1", "2"）可以复制该玩家的完整数据。
 * **提示**: 鼠标悬停在玩家昵称或数值上会显示更详细的原始数据和统计信息（如暴击率、幸运率）。
 
 ### 设置面板
+
 * **闲置模式与退出暂停**: 勾选以启用相应功能。
 * **字体大小与样式**: 调整界面的字体显示。
 * **窗口透明度**: 左右拖动滑块调整透明度。

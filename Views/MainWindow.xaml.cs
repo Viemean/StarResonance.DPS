@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using StarResonance.DPS.ViewModels;
 
 namespace StarResonance.DPS.Views;
@@ -25,8 +26,9 @@ public partial class MainWindow
         Closing += OnMainWindowClosing;
         StateChanged += MainWindow_OnStateChanged;
     }
+
     // 公开 Background 属性以便绑定
-    public new System.Windows.Media.Brush Background
+    public new Brush Background
     {
         get => base.Background;
         set => base.Background = value;

@@ -24,10 +24,7 @@ public class SkillViewModel : ObservableObject
             _ => Brushes.White
         };
 
-        if (elementBrush is { CanFreeze: true } brush)
-        {
-            brush.Freeze();
-        }
+        if (elementBrush is { CanFreeze: true } brush) brush.Freeze();
 
         ElementColor = elementBrush;
 
