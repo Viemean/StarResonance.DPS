@@ -92,7 +92,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CountdownRunningVisibility))]
     [NotifyPropertyChangedFor(nameof(RealtimeModeVisibility))]
-    [NotifyPropertyChangedFor(nameof(FightDurationVisibility))] 
+    [NotifyPropertyChangedFor(nameof(FightDurationVisibility))]
     // 倒计时按钮的可见性也受此影响
     private bool _isCountdownRunning;
 
@@ -124,6 +124,17 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     private bool _isSettingsVisible;
 
     [ObservableProperty] private bool _isSmartIdleModeEnabled;
+
+    partial void OnIsSmartIdleModeEnabledChanged(bool value)
+    {
+        _ = value;
+        // 重新应用排序规则，这会添加或移除按 IsIdle 排序的规则
+        ApplySorting();
+
+        // 立即刷新整个列表的显示，包括排序、排名和百分比
+        UpdatePlayerList();
+    }
+
     private DateTime _lastCombatActivityTime;
     private ApiResponse? _latestReceivedData;
 
@@ -152,7 +163,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     public Visibility RealtimeModeVisibility => IsInSnapshotMode ? Visibility.Collapsed : Visibility.Visible;
     public Visibility CountdownRunningVisibility => IsCountdownRunning ? Visibility.Visible : Visibility.Collapsed;
     public Visibility PauseStatusVisibility => IsPaused ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility FightDurationVisibility => !IsPaused && !IsCountdownRunning ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility FightDurationVisibility =>
+        !IsPaused && !IsCountdownRunning ? Visibility.Visible : Visibility.Collapsed;
+
     public Visibility NotificationVisibility => IsNotificationVisible ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SettingsVisibility => IsSettingsVisible ? Visibility.Visible : Visibility.Collapsed;
     public bool IsHitTestVisible => !IsLocked;
@@ -1033,6 +1047,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
         ApplySorting();
     }
+
     [RelayCommand]
     public async Task ResetDataAsync()
     {
@@ -1041,58 +1056,82 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             IsInSnapshotMode = false;
             LoadedSnapshotFileName = "";
 
+            // 重置战斗状态
             _fightTimer.Stop();
             _elapsedSeconds = 0;
             FightDurationText = "0:00";
             _isFightActive = false;
             _lastCombatActivityTime = DateTime.MinValue;
 
+            // 清空列表
             Players.Clear();
             _playerCache.Clear();
             OnPropertyChanged(nameof(PlayerCount));
 
+            // 重新连接到实时数据流
             _apiService.DataReceived += OnDataReceived;
             _uiUpdateTimer.Start();
+            await _apiService.ConnectAsync();
 
-            await _apiService.SetPauseStateAsync(false);
-            IsPaused = false;
-
-            var initialData = await _apiService.GetInitialDataAsync();
-            if (initialData != null)
+            //查询并同步服务器状态 ---
+            var (success, isPaused) = await _apiService.GetPauseStateAsync();
+            if (success)
             {
-                var changes = ProcessDataChanges(initialData);
-
-                // 新增：根据初次获取的数据直接启动计时器
-                if (changes.HasDataChanged)
+                // 如果服务器当前是暂停的，则同步UI的暂停状态
+                if (isPaused)
                 {
-                    _lastCombatActivityTime = DateTime.UtcNow;
-                    if (!_isFightActive && !IsPaused)
-                    {
-                        _isFightActive = true;
-                        _fightTimer.Start();
-                    }
+                    IsPaused = true;
+                    ShowNotification("已返回实时模式 (服务暂停中)");
                 }
-
-                if (changes.ListNeedsRefresh)
+                else
                 {
-                    UpdatePlayerList();
+                    // 如果服务器未暂停，则执行与首次启动一致的逻辑
+                    IsPaused = false;
+                    var initialData = await _apiService.GetInitialDataAsync();
+                    if (initialData != null)
+                    {
+                        var changes = ProcessDataChanges(initialData);
+
+                        if (changes.HasDataChanged)
+                        {
+                            _lastCombatActivityTime = DateTime.UtcNow;
+                            if (!_isFightActive) 
+                            {
+                                _isFightActive = true;
+                                _fightTimer.Start();
+                            }
+                        }
+
+                        if (changes.ListNeedsRefresh)
+                        {
+                            UpdatePlayerList();
+                        }
+                    }
+
+                    ShowNotification("已返回实时模式");
                 }
             }
+            else
+            {
+                // 如果查询失败，默认恢复非暂停状态
+                IsPaused = false;
+                ShowNotification("已返回实时模式 (无法获取服务状态)");
+            }
 
+            // 确保最终玩家计数被更新
             OnPropertyChanged(nameof(PlayerCount));
 
-            await _apiService.ConnectAsync();
-            ShowNotification("已返回实时模式");
             return;
         }
 
+        // 以下是处理非快照模式下的重置逻辑
         _fightTimer.Stop();
         _elapsedSeconds = 0;
         FightDurationText = "0:00";
         _isFightActive = false;
         _lastCombatActivityTime = DateTime.MinValue;
-        var success = await _apiService.ResetDataAsync();
-        if (success)
+        var successReset = await _apiService.ResetDataAsync();
+        if (successReset)
             Application.Current.Dispatcher.Invoke(() =>
             {
                 Players.Clear();
