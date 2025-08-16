@@ -42,36 +42,37 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
         <Style x:Key="ScrollBarPageButton" TargetType="{x:Type RepeatButton}">
-            <Setter Property="SnapsToDevicePixels" Value="True" />
-            <Setter Property="OverridesDefaultStyle" Value="true" />
-            <Setter Property="IsTabStop" Value="False" />
-            <Setter Property="Focusable" Value="False" />
-            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="OverridesDefaultStyle" Value="true"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type RepeatButton}">
-                        <Rectangle Fill="Transparent" Width="{TemplateBinding Width}" Height="{TemplateBinding Height}" />
+                        <Rectangle Fill="Transparent" Width="{TemplateBinding Width}" Height="{TemplateBinding Height}"/>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
         <Style x:Key="ScrollBarThumb" TargetType="{x:Type Thumb}">
-            <Setter Property="SnapsToDevicePixels" Value="True" />
-            <Setter Property="OverridesDefaultStyle" Value="true" />
-            <Setter Property="IsTabStop" Value="False" />
-            <Setter Property="Focusable" Value="False" />
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="OverridesDefaultStyle" Value="true"/>
+            <Setter Property="IsTabStop" Value="False"/>
+            <Setter Property="Focusable" Value="False"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Thumb}">
-                        <Border x:Name="thumbBorder" CornerRadius="3" Background="#66FFFFFF" BorderThickness="0" />
+                        <Border x:Name="thumbBorder" CornerRadius="3" Background="#66FFFFFF" BorderThickness="0"/>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="thumbBorder" Property="Background" Value="#99FFFFFF" />
+                                <Setter TargetName="thumbBorder" Property="Background" Value="#99FFFFFF"/>
                             </Trigger>
                             <Trigger Property="IsDragging" Value="True">
-                                <Setter TargetName="thumbBorder" Property="Background" Value="#CCFFFFFF" />
+                                <Setter TargetName="thumbBorder" Property="Background" Value="#CCFFFFFF"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -80,26 +81,24 @@
         </Style>
 
         <Style TargetType="{x:Type ScrollBar}">
-            <Setter Property="SnapsToDevicePixels" Value="True" />
-            <Setter Property="OverridesDefaultStyle" Value="true" />
-            <Setter Property="Width" Value="8" />
-            <Setter Property="Stylus.IsFlicksEnabled" Value="False" />
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="OverridesDefaultStyle" Value="true"/>
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Stylus.IsFlicksEnabled" Value="False"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type ScrollBar}">
                         <Grid>
-                            <Border CornerRadius="4" Background="#22FFFFFF" />
+                            <Border CornerRadius="4" Background="#22FFFFFF"/>
                             <Track x:Name="PART_Track" IsDirectionReversed="true" Width="8">
                                 <Track.Thumb>
-                                    <Thumb Style="{StaticResource ScrollBarThumb}" Margin="1" />
+                                    <Thumb Style="{StaticResource ScrollBarThumb}" Margin="1"/>
                                 </Track.Thumb>
                                 <Track.IncreaseRepeatButton>
-                                    <RepeatButton Style="{StaticResource ScrollBarPageButton}"
-                                                  Command="ScrollBar.PageDownCommand" />
+                                    <RepeatButton Style="{StaticResource ScrollBarPageButton}" Command="ScrollBar.PageDownCommand"/>
                                 </Track.IncreaseRepeatButton>
                                 <Track.DecreaseRepeatButton>
-                                    <RepeatButton Style="{StaticResource ScrollBarPageButton}"
-                                                  Command="ScrollBar.PageUpCommand" />
+                                    <RepeatButton Style="{StaticResource ScrollBarPageButton}" Command="ScrollBar.PageUpCommand"/>
                                 </Track.DecreaseRepeatButton>
                             </Track>
                         </Grid>
@@ -154,10 +153,11 @@
                                 <TextBlock
                                     Text="{Binding DataContext.SortDirection, ElementName=RootWindow, Converter={StaticResource SortDirectionToArrowConverter}}"
                                     Margin="4,0,0,0" VerticalAlignment="Center"
+                                    FontSize="10"
                                     Foreground="{Binding Foreground, RelativeSource={RelativeSource TemplatedParent}}">
                                     <TextBlock.Visibility>
                                         <MultiBinding Converter="{StaticResource SortColumnVisibilityConverter}">
-                                            <Binding Path="DataContext.SortColumn" ElementName="RootWindow" />
+                                            <Binding Path="DataContext.SortColumn" ElementName= "RootWindow" />
                                             <Binding Path="CommandParameter"
                                                      RelativeSource="{RelativeSource TemplatedParent}" />
                                         </MultiBinding>
