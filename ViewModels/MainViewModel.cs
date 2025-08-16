@@ -69,6 +69,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     private readonly Dictionary<string, DateTime> _playerEntryTimes = new(); //追踪玩家首次出现的时间
 
     private readonly DispatcherTimer _uiUpdateTimer;
+    private readonly DispatcherTimer _skillUpdateTimer; // 用于实时更新展开的技能列表
+
 
     [ObservableProperty] private string _backendUrl = "ws://localhost:8989";
     [ObservableProperty] private Brush _connectionStatusColor = Brushes.Orange;
@@ -174,13 +176,15 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     public MainViewModel(ApiService apiService, LocalizationService localizationService)
     {
+        _skillUpdateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _skillUpdateTimer.Tick += SkillUpdateTimer_Tick;
         _playersView = CollectionViewSource.GetDefaultView(Players);
         _apiService = apiService;
         Localization = localizationService;
         SystemFonts = Fonts.SystemFontFamilies.OrderBy(f => f.Source);
         _selectedFontFamily = new FontFamily("Microsoft YaHei");
 
-        // 新增：初始化 Players 集合的默认视图
+        //初始化 Players 集合的默认视图
         PlayersView = CollectionViewSource.GetDefaultView(Players);
 
         _onLocalizationPropertyChanged = (_, e) =>
@@ -220,6 +224,14 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         PauseButtonText = Localization["Pause"] ?? "暂停";
     }
 
+    private async void SkillUpdateTimer_Tick(object? sender, EventArgs e)
+    {
+        // 如果存在一个已展开的玩家，并且我们不在快照模式下，则刷新其技能数据
+        if (_expandedPlayer != null && !IsInSnapshotMode)
+        {
+            await FetchAndProcessSkillDataAsync(_expandedPlayer);
+        }
+    }
     public IEnumerable<FontFamily> SystemFonts { get; }
 
     public LocalizationService Localization { get; }
@@ -265,6 +277,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         _fightTimer.Stop();
         _countdownTimer?.Stop();
         _notificationTimer.Stop();
+        _skillUpdateTimer.Stop();
         _stateSaveTimer.Stop();
         SaveState();
         await _apiService.DisposeAsync();
@@ -549,6 +562,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         {
             player.IsExpanded = false;
             _expandedPlayer = null;
+            _skillUpdateTimer.Stop(); // [修改] 折叠时停止定时器
             return;
         }
 
@@ -564,6 +578,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
         // 无论是主动获取的还是第一次展开，都强制刷新一次以获取最新数据
         await FetchAndProcessSkillDataAsync(player);
+    
+        // [修改] 展开后启动定时器
+        _skillUpdateTimer.Start();
     }
 
     private async Task FetchAndProcessSkillDataAsync(PlayerViewModel player)
@@ -1075,6 +1092,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [RelayCommand]
     public async Task ResetDataAsync()
     {
+        _skillUpdateTimer.Stop();
+        _expandedPlayer = null;
         if (IsInSnapshotMode)
         {
             IsInSnapshotMode = false;
@@ -1092,9 +1111,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             _playerCache.Clear();
             OnPropertyChanged(nameof(PlayerCount));
 
-            // [修改] 先不连接实时数据流，首先获取状态和初始数据
-
-            //查询并同步服务器状态 ---
             var (success, isPaused) = await _apiService.GetPauseStateAsync();
             if (success)
             {
@@ -1135,22 +1151,38 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             return;
         }
 
+// ...
         // 以下是处理非快照模式下的重置逻辑
         _fightTimer.Stop();
         _elapsedSeconds = 0;
         FightDurationText = "0:00";
         _isFightActive = false;
         _lastCombatActivityTime = DateTime.MinValue;
+
+        //告知后端服务重置数据
         var successReset = await _apiService.ResetDataAsync();
-        if (successReset)
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                Players.Clear();
-                _playerCache.Clear();
-                OnPropertyChanged(nameof(PlayerCount));
-            });
-        else
+        if (!successReset)
+        {
             ShowNotification("重置数据失败");
+            return;
+        }
+
+        // 立即清空本地UI和缓存
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            Players.Clear();
+            _playerCache.Clear();
+            OnPropertyChanged(nameof(PlayerCount));
+            UpdateColumnTotals(); // 同时清空表头悬浮统计
+        });
+
+        // 立即通过HTTP请求获取一次完整的当前数据
+        var refreshedData  = await _apiService.GetInitialDataAsync();
+        if (refreshedData  != null)
+        {
+            // 使用ProcessData方法将数据一次性加载到UI
+            await ProcessData(refreshedData );
+        }
     }
 
     [RelayCommand]
