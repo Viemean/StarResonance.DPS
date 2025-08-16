@@ -71,7 +71,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     private readonly DispatcherTimer _uiUpdateTimer;
     private readonly DispatcherTimer _skillUpdateTimer; // 用于实时更新展开的技能列表
 
-
+    private bool _isSortingPaused; 
     [ObservableProperty] private string _backendUrl = "ws://localhost:8989";
     [ObservableProperty] private Brush _connectionStatusColor = Brushes.Orange;
     [ObservableProperty] private string _connectionStatusText = "正在连接...";
@@ -568,7 +568,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         {
             player.IsExpanded = false;
             _expandedPlayer = null;
-            _skillUpdateTimer.Stop(); // [修改] 折叠时停止定时器
+            _skillUpdateTimer.Stop();
+
+            _isSortingPaused = false; //关闭详情时，解除排序暂停
+            UpdatePlayerList();       //并立即刷新一次列表以同步最新排序
             return;
         }
 
@@ -581,11 +584,12 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         // 展开被点击的玩家
         player.IsExpanded = true;
         _expandedPlayer = player;
+        _isSortingPaused = true; //展开详情时，启动排序暂停
 
         // 无论是主动获取的还是第一次展开，都强制刷新一次以获取最新数据
         await FetchAndProcessSkillDataAsync(player);
-
-        // [修改] 展开后启动定时器
+    
+        // 展开后启动定时器
         _skillUpdateTimer.Start();
     }
 
@@ -994,6 +998,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     /// </summary>
     private void UpdatePlayerList()
     {
+        //如果排序功能已暂停，则直接跳过所有刷新逻辑
+        if (_isSortingPaused) return;
         var playersForCalcs = IsSmartIdleModeEnabled
             ? Players.Where(p => !p.IsIdle).ToList()
             : Players.ToList();
@@ -1124,6 +1130,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     {
         _skillUpdateTimer.Stop();
         _expandedPlayer = null;
+        _isSortingPaused = false;//确保重置时解除排序暂停
         if (IsInSnapshotMode)
         {
             IsInSnapshotMode = false;
