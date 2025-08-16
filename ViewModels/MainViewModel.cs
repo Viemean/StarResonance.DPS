@@ -43,6 +43,11 @@ public class AppState
 /// </summary>
 public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotificationService
 {
+    /// <summary>
+    /// WPF 中用于排序、筛选和分组的高性能数据视图。
+    /// </summary>
+    public ICollectionView PlayersView { get; }
+
     //闲置时长
     private const int IdleTimeoutSeconds = 30;
 
@@ -171,6 +176,9 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         SystemFonts = Fonts.SystemFontFamilies.OrderBy(f => f.Source);
         _selectedFontFamily = new FontFamily("Microsoft YaHei");
 
+        // 新增：初始化 Players 集合的默认视图
+        PlayersView = CollectionViewSource.GetDefaultView(Players);
+
         _onLocalizationPropertyChanged = (_, e) =>
         {
             OnPropertyChanged(string.IsNullOrEmpty(e.PropertyName) ? string.Empty : nameof(Localization));
@@ -196,16 +204,18 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         _stateSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _stateSaveTimer.Tick += (_, _) => SaveState();
         _stateSaveTimer.Start();
+
+        // 初始化时设置默认排序
         SortColumn = "TotalDps";
+        ApplySorting();
+
         _notificationTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _notificationTimer.Tick += (_, _) => IsNotificationVisible = false;
 
-        // 将定时器间隔从1秒延长到3秒，降低检查频率
         _proactiveDataFetchTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
         _proactiveDataFetchTimer.Tick += ProactiveDataFetchTimer_Tick;
         _proactiveDataFetchTimer.Start();
 
-        //初始化列表整体刷新定时器，每2秒执行一次
         _listRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _listRefreshTimer.Tick += (_, _) => UpdatePlayerList();
         _listRefreshTimer.Start();
@@ -219,6 +229,30 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     public LocalizationService Localization { get; }
     public string AccurateCritDamageLabelText => Localization["AccurateCritDamageLabel"] ?? "精确暴伤加成 (加权):";
 
+    /// <summary>
+    /// 将当前的排序规则应用到 PlayersView。
+    /// </summary>
+    private void ApplySorting()
+    {
+        // 在修改 SortDescriptions 之前，最好先切换到UI线程
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            PlayersView.SortDescriptions.Clear();
+
+            // 规则1：如果启用了闲置模式，总是先按是否闲置排序（不闲置的在前）
+            if (IsSmartIdleModeEnabled)
+            {
+                PlayersView.SortDescriptions.Add(new SortDescription(nameof(PlayerViewModel.IsIdle),
+                    ListSortDirection.Ascending));
+            }
+
+            // 规则2：根据用户选择的列进行主排序
+            if (!string.IsNullOrEmpty(SortColumn))
+            {
+                PlayersView.SortDescriptions.Add(new SortDescription(SortColumn, SortDirection));
+            }
+        });
+    }
 
     //玩家总数
     public int PlayerCount => Players.Count;
@@ -891,109 +925,88 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     ///     根据当前排序设置，对玩家列表进行排序、计算百分比并更新UI。
     ///     同时处理闲置玩家的逻辑。
     /// </summary>
-    private void UpdatePlayerList()
+private void UpdatePlayerList()
+{
+    // 步骤 1: 计算百分比 (逻辑不变)
+    var playersForCalcs = IsSmartIdleModeEnabled
+        ? Players.Where(p => !p.IsIdle).ToList()
+        : Players.ToList();
+    if (playersForCalcs.Count == 0)
     {
-        // 仅当处于实时模式且用户启用了闲置模式时，才计算玩家的闲置状态
-        if (IsSmartIdleModeEnabled && !IsInSnapshotMode)
+        foreach (var p in Players)
         {
-            var now = DateTime.UtcNow;
-            foreach (var player in _playerCache.Values)
-                player.IsIdle = (now - player.LastActiveTime).TotalSeconds > IdleTimeoutSeconds;
+            p.DamageDisplayPercentage = null;
+            p.HealingDisplayPercentage = null;
+            p.TakenDamageDisplayPercentage = null;
+        }
+        UpdateColumnTotals();
+        return;
+    }
+
+    var totalDamage = playersForCalcs.Sum(p => p.TotalDamage);
+    var totalHealing = playersForCalcs.Sum(p => p.TotalHealing);
+    var totalTakenDamage = playersForCalcs.Sum(p => p.TakenDamage);
+    var showDamagePercent = SortColumn is "TotalDamage" or "TotalDps";
+    var showHealingPercent = SortColumn is "TotalHealing" or "TotalHps";
+
+    foreach (var player in Players)
+    {
+        if (IsSmartIdleModeEnabled && player.IsIdle)
+        {
+            player.DamageDisplayPercentage = null;
+            player.HealingDisplayPercentage = null;
+            player.TakenDamageDisplayPercentage = null;
+            continue;
+        }
+        
+        // ... (百分比计算逻辑不变)
+        if (totalTakenDamage > 0)
+        {
+            var takenPct = player.TakenDamage / totalTakenDamage * 100;
+            player.TakenDamageDisplayPercentage = takenPct >= 1 ? $" {takenPct:F0}%" : null;
         }
         else
         {
-            foreach (var player in _playerCache.Values) player.IsIdle = false;
+            player.TakenDamageDisplayPercentage = null;
         }
 
-        var playersForCalcs = IsSmartIdleModeEnabled
-            ? Players.Where(p => !p.IsIdle).ToList()
-            : Players.ToList();
-        if (playersForCalcs.Count == 0)
+        if (showDamagePercent && totalDamage > 0)
         {
-            foreach (var p in Players)
-            {
-                p.DamageDisplayPercentage = null;
-                p.HealingDisplayPercentage = null;
-                p.TakenDamageDisplayPercentage = null;
-            }
-
-            UpdateColumnTotals();
-            return;
+            var damagePct = player.TotalDamage / totalDamage * 100;
+            player.DamageDisplayPercentage = damagePct >= 1 ? $" {damagePct:F0}%" : null;
         }
-
-        var totalDamage = playersForCalcs.Sum(p => p.TotalDamage);
-        var totalHealing = playersForCalcs.Sum(p => p.TotalHealing);
-        var totalTakenDamage = playersForCalcs.Sum(p => p.TakenDamage);
-        var showDamagePercent = SortColumn is "TotalDamage" or "TotalDps";
-        var showHealingPercent = SortColumn is "TotalHealing" or "TotalHps";
-
-        foreach (var player in Players)
+        else
         {
-            if (IsSmartIdleModeEnabled && player.IsIdle)
-            {
-                player.DamageDisplayPercentage = null;
-                player.HealingDisplayPercentage = null;
-                player.TakenDamageDisplayPercentage = null;
-                continue;
-            }
-
-            if (totalTakenDamage > 0)
-            {
-                var takenPct = player.TakenDamage / totalTakenDamage * 100;
-                //只有当承伤占比 >= 1% 时才显示
-                player.TakenDamageDisplayPercentage = takenPct >= 1 ? $" {takenPct:F0}%" : null;
-            }
-            else
-            {
-                player.TakenDamageDisplayPercentage = null;
-            }
-
-            if (showDamagePercent && totalDamage > 0)
-            {
-                var damagePct = player.TotalDamage / totalDamage * 100;
-                //只有当伤害占比 >= 1% 时才显示
-                player.DamageDisplayPercentage = damagePct >= 1 ? $" {damagePct:F0}%" : null;
-            }
-            else
-            {
-                player.DamageDisplayPercentage = null;
-            }
-
-            if (showHealingPercent && totalHealing > 0)
-            {
-                var healingPct = player.TotalHealing / totalHealing * 100;
-                //只有当治疗占比 >= 1% 时才显示
-                player.HealingDisplayPercentage = healingPct >= 1 ? $" {healingPct:F0}%" : null;
-            }
-            else
-            {
-                player.HealingDisplayPercentage = null;
-            }
+            player.DamageDisplayPercentage = null;
         }
 
-        if (!Sorters.TryGetValue(SortColumn ?? "TotalDps", out var keySelector)) keySelector = Sorters["TotalDps"];
-        var sortedQuery = SortDirection == ListSortDirection.Ascending
-            ? Players.OrderBy(p => p.IsIdle).ThenBy(keySelector)
-            : Players.OrderBy(p => p.IsIdle).ThenByDescending(keySelector);
-        var sortedPlayers = sortedQuery.ToList();
-        foreach (var p in Players) p.ShowSeparatorAfter = false;
-        if (IsSmartIdleModeEnabled)
+        if (showHealingPercent && totalHealing > 0)
         {
-            var lastActivePlayer = sortedPlayers.LastOrDefault(p => !p.IsIdle);
-            if (lastActivePlayer != null) lastActivePlayer.ShowSeparatorAfter = true;
+            var healingPct = player.TotalHealing / totalHealing * 100;
+            player.HealingDisplayPercentage = healingPct >= 1 ? $" {healingPct:F0}%" : null;
         }
-
-        for (var i = 0; i < sortedPlayers.Count; i++)
+        else
         {
-            var player = sortedPlayers[i];
-            player.Rank = player.IsIdle ? 0 : i + 1;
-            var originalIndex = Players.IndexOf(player);
-            if (originalIndex != i) Players.Move(originalIndex, i);
+            player.HealingDisplayPercentage = null;
         }
-
-        UpdateColumnTotals();
     }
 
+    //刷新视图 (不再手动排序和移动)
+    Application.Current.Dispatcher.Invoke(() => PlayersView.Refresh());
+    
+    //更新排名和总计 (在刷新后进行)
+    // 需要从已排序的视图中读取玩家来更新排名
+    var rank = 1;
+    foreach (var item in PlayersView)
+    {
+        if (item is PlayerViewModel player)
+        {
+            player.Rank = (IsSmartIdleModeEnabled && player.IsIdle) ? 0 : rank++;
+        }
+    }
+    
+    UpdateColumnTotals();
+}    
     [RelayCommand]
     private void SortBy(string columnName)
     {
@@ -1009,7 +1022,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             SortDirection = ListSortDirection.Descending;
         }
 
-        UpdatePlayerList();
+        ApplySorting();
     }
 
     [RelayCommand]

@@ -283,10 +283,12 @@
                                 ToolTip="{Binding TakenDamageSumTooltip}" />
                     </views:DynamicGrid>
 
-                    <ListView Grid.Row="1" ItemsSource="{Binding Players}" Background="Transparent" BorderThickness="0"
+                    <ListView Grid.Row="1" ItemsSource="{Binding PlayersView}" Background="Transparent"
+                              BorderThickness="0"
                               HorizontalContentAlignment="Stretch" Margin="5,0,0,0"
                               VirtualizingStackPanel.IsVirtualizing="True"
                               VirtualizingStackPanel.VirtualizationMode="Recycling"
+                              VirtualizingStackPanel.CacheLength="4,4"
                               ScrollViewer.VerticalScrollBarVisibility="Auto"
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled">
 
