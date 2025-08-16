@@ -25,6 +25,12 @@ public partial class MainWindow
         Closing += OnMainWindowClosing;
         StateChanged += MainWindow_OnStateChanged;
     }
+    // 公开 Background 属性以便绑定
+    public new System.Windows.Media.Brush Background
+    {
+        get => base.Background;
+        set => base.Background = value;
+    }
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
