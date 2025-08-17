@@ -14,8 +14,6 @@ public partial class MainWindow
 {
     private const int GwlExstyle = -20;
     private const int WsExTransparent = 0x20;
-    private bool _isMinimized;
-    private double _restoreTop, _restoreLeft, _restoreHeight, _restoreWidth;
     private MainViewModel? _viewModel;
 
     public MainWindow()
@@ -25,7 +23,7 @@ public partial class MainWindow
         Closing += OnMainWindowClosing;
         StateChanged += MainWindow_OnStateChanged;
     }
-    
+
     [LibraryImport("user32.dll")]
     private static partial IntPtr GetWindowLongPtrW(IntPtr hWnd, int nIndex);
 
@@ -71,29 +69,9 @@ public partial class MainWindow
 
     private void MainWindow_OnStateChanged(object? sender, EventArgs e)
     {
-        switch (WindowState)
+        if (WindowState == WindowState.Minimized)
         {
-            case WindowState.Minimized:
-            {
-                if (!_isMinimized)
-                {
-                    _restoreTop = Top;
-                    _restoreLeft = Left;
-                    _restoreHeight = Height;
-                    _restoreWidth = Width;
-                    _isMinimized = true;
-                }
-
-                Hide();
-                break;
-            }
-            case WindowState.Normal:
-                _isMinimized = false;
-                break;
-            case WindowState.Maximized:
-                break;
-            default:
-                throw new ArgumentOutOfRangeException();
+            Hide();
         }
     }
 
@@ -121,10 +99,6 @@ public partial class MainWindow
     {
         Show();
         WindowState = WindowState.Normal;
-        Top = _restoreTop;
-        Left = _restoreLeft;
-        Height = _restoreHeight;
-        Width = _restoreWidth;
         Activate();
     }
 
@@ -133,11 +107,6 @@ public partial class MainWindow
         try
         {
             _viewModel = (MainViewModel)DataContext;
-            _viewModel.PropertyChanged += ViewModel_PropertyChanged;
-            _restoreTop = Top;
-            _restoreLeft = Left;
-            _restoreHeight = Height;
-            _restoreWidth = Width;
             await _viewModel.InitializeAsync();
         }
         catch (Exception ex)

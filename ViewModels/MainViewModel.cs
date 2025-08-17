@@ -31,11 +31,16 @@ public class AppState
     public string? CultureName { get; init; }
     public bool PauseOnExit { get; init; } = true;
     public bool PauseOnSnapshot { get; init; } = true;
-
-
     //用于保存排序规则
     public string? SortColumn { get; init; }
+    
     public ListSortDirection SortDirection { get; init; }
+    
+    ///   主窗口的位置和大小
+    public double WindowTop { get; init; }
+    public double WindowLeft { get; init; }
+    public double WindowHeight { get; init; }
+    public double WindowWidth { get; init; }
 }
 
 /// <summary>
@@ -156,6 +161,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [ObservableProperty] private string? _totalHealingSumTooltip;
     [ObservableProperty] private string? _totalHpsSumTooltip;
     [ObservableProperty] private int _uiUpdateInterval = 500;
+    [ObservableProperty] private double _windowTop = 100;
+    [ObservableProperty] private double _windowLeft = 100;
+    [ObservableProperty] private double _windowHeight = 350;
+    [ObservableProperty] private double _windowWidth = 700;
 
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(FontOpacity))]
     private double _windowOpacity = 0.85;
@@ -384,6 +393,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                     UiUpdateInterval = state.UiUpdateInterval;
                     IsPauseOnExitEnabled = state.PauseOnExit;
                     IsPauseOnSnapshotEnabled = state.PauseOnSnapshot;
+                    WindowTop = state.WindowTop;
+                    WindowLeft = state.WindowLeft;
+                    WindowHeight = state.WindowHeight > 0 ? state.WindowHeight : 350; // 防止加载到0或负数
+                    WindowWidth = state.WindowWidth > 0 ? state.WindowWidth : 700;
 
                     //加载已保存的排序设置
                     if (!string.IsNullOrEmpty(state.SortColumn))
@@ -425,7 +438,12 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 PauseOnSnapshot = IsPauseOnSnapshotEnabled,
                 //保存当前的排序设置
                 SortColumn = SortColumn,
-                SortDirection = SortDirection
+                SortDirection = SortDirection,
+                // 新增保存窗口状态的逻辑
+                WindowTop = WindowTop,
+                WindowLeft = WindowLeft,
+                WindowHeight = WindowHeight,
+                WindowWidth = WindowWidth
             };
             var json = JsonSerializer.Serialize(state, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_stateFilePath, json);
