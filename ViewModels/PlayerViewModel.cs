@@ -333,6 +333,39 @@ public partial class PlayerViewModel(
 
         OnComputedPropertiesChanged();
     }
+    /// <summary>
+    /// 批量更新百分比属性
+    /// </summary>
+    /// <param name="damagePct">总伤害</param>
+    /// <param name="healingPct">总治疗</param>
+    /// <param name="dpsPct">总DPS</param>
+    /// <param name="hpsPct">总HPS</param>
+    /// <param name="takenDamagePct">承伤</param>
+    /// <param name="sortColumn">排序</param>
+    public void UpdateDisplayPercentages(double damagePct, double healingPct, double dpsPct, double hpsPct, double takenDamagePct, string? sortColumn)
+    {
+        DamageDisplayPercentage = null;
+        HealingDisplayPercentage = null;
+        DpsDisplayPercentage = null;
+        HpsDisplayPercentage = null;
+        TakenDamageDisplayPercentage = takenDamagePct >= 1 ? $" {takenDamagePct:F0}%" : null;
+
+        switch (sortColumn)
+        {
+            case MainViewModel.SortableColumns.TotalDamage:
+                DamageDisplayPercentage = damagePct >= 1 ? $" {damagePct:F0}%" : null;
+                break;
+            case MainViewModel.SortableColumns.TotalHealing:
+                HealingDisplayPercentage = healingPct >= 1 ? $" {healingPct:F0}%" : null;
+                break;
+            case MainViewModel.SortableColumns.TotalDps:
+                DpsDisplayPercentage = dpsPct >= 1 ? $" {dpsPct:F0}%" : null;
+                break;
+            case MainViewModel.SortableColumns.TotalHps:
+                HpsDisplayPercentage = hpsPct >= 1 ? $" {hpsPct:F0}%" : null;
+                break;
+        }
+    }
 
     private void OnComputedPropertiesChanged()
     {
