@@ -10,7 +10,7 @@
         <SelfContained>false</SelfContained>
         <PublishReadyToRun>false</PublishReadyToRun>
         <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-        <Version>1.0.9</Version>
+        <Version>1.1.0</Version>
         <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
 
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
