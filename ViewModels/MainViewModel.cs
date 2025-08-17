@@ -30,14 +30,17 @@ public class AppState
     public int UiUpdateInterval { get; init; } = 500;
     public string? CultureName { get; init; }
     public bool PauseOnExit { get; init; } = true;
+
     public bool PauseOnSnapshot { get; init; } = true;
+
     //用于保存排序规则
     public string? SortColumn { get; init; }
-    
+
     public ListSortDirection SortDirection { get; init; }
-    
+
     ///   主窗口的位置和大小
     public double WindowTop { get; init; }
+
     public double WindowLeft { get; init; }
     public double WindowHeight { get; init; }
     public double WindowWidth { get; init; }
@@ -1060,7 +1063,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         {
             PlayersView.Refresh();
             var rank = 1;
-            foreach (var p in Players.Cast<PlayerViewModel>())
+            // 关键修复：遍历排序后的 PlayersView 而不是未排序的 Players 集合
+            foreach (PlayerViewModel p in PlayersView)
             {
                 p.Rank = (IsSmartIdleModeEnabled && p.IsIdle) ? 0 : rank++;
             }
