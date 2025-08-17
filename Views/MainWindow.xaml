@@ -291,7 +291,8 @@
                               VirtualizingStackPanel.VirtualizationMode="Recycling"
                               VirtualizingStackPanel.CacheLength="4,4"
                               ScrollViewer.VerticalScrollBarVisibility="Auto"
-                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              ScrollViewer.CanContentScroll="True">
 
                         <ListView.ItemsPanel>
                             <ItemsPanelTemplate>
