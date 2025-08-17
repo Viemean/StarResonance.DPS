@@ -25,6 +25,13 @@ public partial class MainWindow
         Closing += OnMainWindowClosing;
         StateChanged += MainWindow_OnStateChanged;
     }
+    
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetWindowLongPtrW(IntPtr hWnd, int nIndex);
+
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr SetWindowLongPtrW(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -38,15 +45,15 @@ public partial class MainWindow
     private void SetWindowClickThrough()
     {
         var hwnd = new WindowInteropHelper(this).Handle;
-        var extendedStyle = GetWindowLong(hwnd, GwlExstyle);
-        _ = SetWindowLong(hwnd, GwlExstyle, extendedStyle | WsExTransparent);
+        var extendedStyle = GetWindowLongPtrW(hwnd, GwlExstyle);
+        _ = SetWindowLongPtrW(hwnd, GwlExstyle, new IntPtr(extendedStyle.ToInt64() | WsExTransparent));
     }
 
     private void ClearWindowClickThrough()
     {
         var hwnd = new WindowInteropHelper(this).Handle;
-        var extendedStyle = GetWindowLong(hwnd, GwlExstyle);
-        _ = SetWindowLong(hwnd, GwlExstyle, extendedStyle & ~WsExTransparent);
+        var extendedStyle = GetWindowLongPtrW(hwnd, GwlExstyle);
+        _ = SetWindowLongPtrW(hwnd, GwlExstyle, new IntPtr(extendedStyle.ToInt64() & ~WsExTransparent));
     }
 
     private async void Player_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -225,10 +232,4 @@ public partial class MainWindow
             Debug.WriteLine($"Error on abort countdown: {error.Message}");
         }
     }
-
-    [LibraryImport("user32.dll")]
-    private static partial int GetWindowLong(IntPtr hwnd, int index);
-
-    [LibraryImport("user32.dll")]
-    private static partial int SetWindowLong(IntPtr hwnd, int index, int newStyle);
 }
