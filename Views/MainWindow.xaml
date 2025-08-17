@@ -12,7 +12,7 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=viewModels:MainViewModel, IsDesignTimeCreatable=True}"
         Title="星痕共鸣DPS统计"
-        Height="{Binding WindowHeight, Mode=TwoWay}" 
+        Height="{Binding WindowHeight, Mode=TwoWay}"
         Width="{Binding WindowWidth, Mode=TwoWay}"
         Top="{Binding WindowTop, Mode=TwoWay}"
         Left="{Binding WindowLeft, Mode=TwoWay}"
@@ -269,22 +269,28 @@
                                 CommandParameter="{x:Static viewModels:MainViewModel+SortableColumns.FightPoint}"
                                 Style="{StaticResource HeaderButtonStyle}" Foreground="Gold" />
                         <Button Grid.Column="3" Content="{Binding Localization[Profession]}"
-                                CommandParameter="Profession" Style="{StaticResource HeaderButtonStyle}" />
+                                CommandParameter="{x:Static viewModels:MainViewModel+SortableColumns.Profession}"
+                                Style="{StaticResource HeaderButtonStyle}" />
 
                         <Button Grid.Column="4" Content="{Binding Localization[TotalDamage]}"
-                                CommandParameter="TotalDamage" Style="{StaticResource HeaderButtonStyle}"
+                                CommandParameter="{x:Static viewModels:MainViewModel+SortableColumns.TotalDamage}"
+                                Style="{StaticResource HeaderButtonStyle}"
                                 Foreground="OrangeRed" ToolTip="{Binding TotalDamageSumTooltip}" />
                         <Button Grid.Column="5" Content="{Binding Localization[TotalHealing]}"
-                                CommandParameter="TotalHealing" Style="{StaticResource HeaderButtonStyle}"
+                                CommandParameter="{x:Static viewModels:MainViewModel+SortableColumns.TotalHealing}"
+                                Style="{StaticResource HeaderButtonStyle}"
                                 Foreground="Cyan" ToolTip="{Binding TotalHealingSumTooltip}" />
-                        <Button Grid.Column="6" Content="{Binding Localization[TotalDPS]}" CommandParameter="TotalDps"
+                        <Button Grid.Column="6" Content="{Binding Localization[TotalDPS]}"
+                                CommandParameter="{x:Static viewModels:MainViewModel+SortableColumns.TotalDps}"
                                 Style="{StaticResource HeaderButtonStyle}" Foreground="Yellow"
                                 ToolTip="{Binding TotalDpsSumTooltip}" />
-                        <Button Grid.Column="7" Content="{Binding Localization[TotalHPS]}" CommandParameter="TotalHps"
+                        <Button Grid.Column="7" Content="{Binding Localization[TotalHPS]}"
+                                CommandParameter="{x:Static viewModels:MainViewModel+SortableColumns.TotalHps}"
                                 Style="{StaticResource HeaderButtonStyle}" Foreground="LimeGreen"
                                 ToolTip="{Binding TotalHpsSumTooltip}" />
                         <Button Grid.Column="8" Content="{Binding Localization[TakenDamage]}"
-                                CommandParameter="TakenDamage" Style="{StaticResource HeaderButtonStyle}"
+                                CommandParameter="{x:Static viewModels:MainViewModel+SortableColumns.TakenDamage}"
+                                Style="{StaticResource HeaderButtonStyle}"
                                 Foreground="DodgerBlue" HorizontalContentAlignment="Right"
                                 ToolTip="{Binding TakenDamageSumTooltip}" />
                     </views:DynamicGrid>

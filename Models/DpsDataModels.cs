@@ -202,7 +202,7 @@ public record SkillApiResponseData
     [JsonInclude]
     [JsonPropertyName("skills")]
     public Dictionary<string, SkillData> Skills { get; init; } = new();
-    
+
     [JsonInclude]
     [JsonPropertyName("attr")]
     public Attr? Attr { get; init; }

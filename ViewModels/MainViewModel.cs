@@ -38,7 +38,7 @@ public class AppState
 
     public ListSortDirection SortDirection { get; init; }
 
-    ///   主窗口的位置和大小
+    /// 主窗口的位置和大小
     public double WindowTop { get; init; }
 
     public double WindowLeft { get; init; }
@@ -51,8 +51,6 @@ public class AppState
 /// </summary>
 public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotificationService
 {
-    [ObservableProperty] private ICollectionView _playersView;
-
     //闲置时长
     private const int IdleTimeoutSeconds = 30;
 
@@ -71,15 +69,13 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     private readonly PropertyChangedEventHandler _onLocalizationPropertyChanged;
     private readonly Dictionary<string, PlayerViewModel> _playerCache = new();
+
+    private readonly Dictionary<string, DateTime> _playerEntryTimes = new(); //追踪玩家首次出现的时间
+    private readonly DispatcherTimer _skillUpdateTimer; // 用于实时更新展开的技能列表
     private readonly string _stateFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "dps_state.json");
     private readonly DispatcherTimer _stateSaveTimer;
 
-    private readonly Dictionary<string, DateTime> _playerEntryTimes = new(); //追踪玩家首次出现的时间
-
     private readonly DispatcherTimer _uiUpdateTimer;
-    private readonly DispatcherTimer _skillUpdateTimer; // 用于实时更新展开的技能列表
-
-    private bool _isSortingPaused;
     [ObservableProperty] private string _backendUrl = "ws://localhost:8989";
     [ObservableProperty] private Brush _connectionStatusColor = Brushes.Orange;
     [ObservableProperty] private string _connectionStatusText = "正在连接...";
@@ -130,20 +126,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     [ObservableProperty] private bool _isSmartIdleModeEnabled;
 
-    partial void OnIsSmartIdleModeEnabledChanged(bool value)
-    {
-        _ = value;
-        // 重新应用排序规则，这会添加或移除按 IsIdle 排序的规则
-        ApplySorting();
-
-        // 立即刷新整个列表的显示，包括排序、排名和百分比
-        UpdatePlayerList();
-    }
-
-    partial void OnPlayersChanged(ObservableCollection<PlayerViewModel> value)
-    {
-        PlayersView = CollectionViewSource.GetDefaultView(value);
-    }
+    private bool _isSortingPaused;
 
     private DateTime _lastCombatActivityTime;
     private ApiResponse? _latestReceivedData;
@@ -155,6 +138,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [ObservableProperty] private string _pauseButtonText = "暂停";
     [ObservableProperty] private Brush _pauseStatusColor = Brushes.LimeGreen;
     [ObservableProperty] private ObservableCollection<PlayerViewModel> _players = [];
+    [ObservableProperty] private ICollectionView _playersView;
     [ObservableProperty] private FontFamily _selectedFontFamily;
     [ObservableProperty] private string? _sortColumn;
     [ObservableProperty] private ListSortDirection _sortDirection = ListSortDirection.Descending;
@@ -164,37 +148,14 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [ObservableProperty] private string? _totalHealingSumTooltip;
     [ObservableProperty] private string? _totalHpsSumTooltip;
     [ObservableProperty] private int _uiUpdateInterval = 500;
-    [ObservableProperty] private double _windowTop = 100;
-    [ObservableProperty] private double _windowLeft = 100;
     [ObservableProperty] private double _windowHeight = 350;
-    [ObservableProperty] private double _windowWidth = 700;
+    [ObservableProperty] private double _windowLeft = 100;
 
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(FontOpacity))]
     private double _windowOpacity = 0.85;
 
-    //用于替换 IValueConverter 的计算属性
-    public Visibility SnapshotModeVisibility => IsInSnapshotMode ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility RealtimeModeVisibility => IsInSnapshotMode ? Visibility.Collapsed : Visibility.Visible;
-    public Visibility CountdownRunningVisibility => IsCountdownRunning ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility PauseStatusVisibility => IsPaused ? Visibility.Visible : Visibility.Collapsed;
-
-    public Visibility FightDurationVisibility =>
-        !IsPaused && !IsCountdownRunning ? Visibility.Visible : Visibility.Collapsed;
-
-    public Visibility NotificationVisibility => IsNotificationVisible ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility SettingsVisibility => IsSettingsVisible ? Visibility.Visible : Visibility.Collapsed;
-    public bool IsHitTestVisible => !IsLocked;
-    public double FontOpacity => WindowOpacity < 0.8 ? 0.8 : WindowOpacity;
-
-    partial void OnCustomCountdownMinutesChanged(string value)
-    {
-        if (double.TryParse(value, out var minutes))
-        {
-            if (!(minutes > 60)) return;
-            _customCountdownMinutes = "60";
-            OnPropertyChanged(nameof(CustomCountdownMinutes));
-        }
-    }
+    [ObservableProperty] private double _windowTop = 100;
+    [ObservableProperty] private double _windowWidth = 700;
 
     public MainViewModel(ApiService apiService, LocalizationService localizationService)
     {
@@ -246,44 +207,23 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         PauseButtonText = Localization["Pause"] ?? "暂停";
     }
 
-    private async void SkillUpdateTimer_Tick(object? sender, EventArgs e)
-    {
-        // 如果存在一个已展开的玩家，并且我们不在快照模式下，则刷新其技能数据
-        if (_expandedPlayer != null && !IsInSnapshotMode)
-        {
-            await FetchAndProcessSkillDataAsync(_expandedPlayer);
-        }
-    }
+    //用于替换 IValueConverter 的计算属性
+    public Visibility SnapshotModeVisibility => IsInSnapshotMode ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility RealtimeModeVisibility => IsInSnapshotMode ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility CountdownRunningVisibility => IsCountdownRunning ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility PauseStatusVisibility => IsPaused ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility FightDurationVisibility =>
+        !IsPaused && !IsCountdownRunning ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility NotificationVisibility => IsNotificationVisible ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility SettingsVisibility => IsSettingsVisible ? Visibility.Visible : Visibility.Collapsed;
+    public bool IsHitTestVisible => !IsLocked;
+    public double FontOpacity => WindowOpacity < 0.8 ? 0.8 : WindowOpacity;
 
     public IEnumerable<FontFamily> SystemFonts { get; }
 
     public LocalizationService Localization { get; }
-    public string AccurateCritDamageLabelText => Localization["AccurateCritDamageLabel"] ?? "精确暴伤加成 (加权):";
-
-    /// <summary>
-    /// 将当前的排序规则应用到 PlayersView。
-    /// </summary>
-    private void ApplySorting()
-    {
-        // 在修改 SortDescriptions 之前，最好先切换到UI线程
-        Application.Current.Dispatcher.Invoke(() =>
-        {
-            PlayersView.SortDescriptions.Clear();
-
-            // 规则1：如果启用了闲置模式，总是先按是否闲置排序（不闲置的在前）
-            if (IsSmartIdleModeEnabled)
-            {
-                PlayersView.SortDescriptions.Add(new SortDescription(nameof(PlayerViewModel.IsIdle),
-                    ListSortDirection.Ascending));
-            }
-
-            // 规则2：根据用户选择的列进行主排序
-            if (!string.IsNullOrEmpty(SortColumn))
-            {
-                PlayersView.SortDescriptions.Add(new SortDescription(SortColumn, SortDirection));
-            }
-        });
-    }
 
     //玩家总数
     public int PlayerCount => Players.Count;
@@ -313,6 +253,56 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         IsNotificationVisible = true;
         _notificationTimer.Stop();
         _notificationTimer.Start();
+    }
+
+    partial void OnIsSmartIdleModeEnabledChanged(bool value)
+    {
+        _ = value;
+        // 重新应用排序规则，这会添加或移除按 IsIdle 排序的规则
+        ApplySorting();
+
+        // 立即刷新整个列表的显示，包括排序、排名和百分比
+        UpdatePlayerList();
+    }
+
+    partial void OnPlayersChanged(ObservableCollection<PlayerViewModel> value)
+    {
+        PlayersView = CollectionViewSource.GetDefaultView(value);
+    }
+
+    partial void OnCustomCountdownMinutesChanged(string value)
+    {
+        if (!double.TryParse(value, out var minutes)) return;
+        if (!(minutes > 60)) return;
+        _customCountdownMinutes = "60";
+        OnPropertyChanged(nameof(CustomCountdownMinutes));
+    }
+
+    private async void SkillUpdateTimer_Tick(object? sender, EventArgs e)
+    {
+        // 如果存在一个已展开的玩家，并且我们不在快照模式下，则刷新其技能数据
+        if (_expandedPlayer != null && !IsInSnapshotMode) await FetchAndProcessSkillDataAsync(_expandedPlayer);
+    }
+
+    /// <summary>
+    ///     将当前的排序规则应用到 PlayersView。
+    /// </summary>
+    private void ApplySorting()
+    {
+        // 在修改 SortDescriptions 之前，最好先切换到UI线程
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            PlayersView.SortDescriptions.Clear();
+
+            // 规则1：如果启用了闲置模式，总是先按是否闲置排序（不闲置的在前）
+            if (IsSmartIdleModeEnabled)
+                PlayersView.SortDescriptions.Add(new SortDescription(nameof(PlayerViewModel.IsIdle),
+                    ListSortDirection.Ascending));
+
+            // 规则2：根据用户选择的列进行主排序
+            if (!string.IsNullOrEmpty(SortColumn))
+                PlayersView.SortDescriptions.Add(new SortDescription(SortColumn, SortDirection));
+        });
     }
 
     private void OnApiServiceConnected()
@@ -467,7 +457,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         FightDurationText = timeSpan.TotalHours >= 1
             ? timeSpan.ToString(@"h\:mm\:ss")
             : timeSpan.ToString(@"m\:ss");
-        // 如果超过2秒不活跃，则不执行任何操作，计时器会平滑地“冻结”。
     }
 
     partial void OnIsLockedChanged(bool value)
@@ -520,12 +509,13 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     }
 
     /// <summary>
-    /// 将一个double类型的数值格式化为易于阅读的字符串，使用K, M, G等单位。
+    ///     将一个double类型的数值格式化为易于阅读的字符串，使用K, M, G等单位。
     /// </summary>
     /// <param name="num">要格式化的数值。</param>
     /// <returns>格式化后的字符串。</returns>
-    public static string FormatNumber(double num) =>
-        num switch
+    public static string FormatNumber(double num)
+    {
+        return num switch
         {
             >= 1_000_000_000 => $"{num / 1_000_000_000:0.##}G",
             >= 1_000_000 => $"{num / 1_000_000:0.##}M",
@@ -533,6 +523,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             >= 1_000 => $"{num / 1_000:0.##}K",
             _ => num.ToString("N0")
         };
+    }
 
     [RelayCommand]
     private async Task ConnectToBackendAsync()
@@ -600,10 +591,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         }
 
         // 如果当前有其他玩家处于展开状态，先将其折叠
-        if (_expandedPlayer is not null && _expandedPlayer != player)
-        {
-            _expandedPlayer.IsExpanded = false;
-        }
+        if (_expandedPlayer is not null && _expandedPlayer != player) _expandedPlayer.IsExpanded = false;
 
         // 展开被点击的玩家
         player.IsExpanded = true;
@@ -635,10 +623,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    foreach (var skillVm in skills)
-                    {
-                        player.Skills.Add(skillVm);
-                    }
+                    foreach (var skillVm in skills) player.Skills.Add(skillVm);
                 });
             }
 
@@ -668,10 +653,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                     await Application.Current.Dispatcher.InvokeAsync(() =>
                     {
                         player.Skills.Clear();
-                        foreach (var skillVm in skills)
-                        {
-                            player.Skills.Add(skillVm);
-                        }
+                        foreach (var skillVm in skills) player.Skills.Add(skillVm);
                     });
 
                     player.CalculateAccurateCritDamage(skillDataResponse.Data.Skills);
@@ -838,10 +820,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 }
 
                 // 如果有玩家“唤醒”或列表结构发生变化，才立即刷新列表
-                if (changes.ListNeedsRefresh)
-                {
-                    UpdatePlayerList();
-                }
+                if (changes.ListNeedsRefresh) UpdatePlayerList();
             }
 
             // 无论有无新数据，都执行一次闲置状态检查
@@ -903,10 +882,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 if (_playerCache.TryGetValue(key, out var playerVm))
                 {
                     newPlayerCache.Add(key, playerVm);
-                    if (_playerEntryTimes.TryGetValue(key, out var entryTime))
-                    {
-                        newPlayerEntryTimes.Add(key, entryTime);
-                    }
+                    if (_playerEntryTimes.TryGetValue(key, out var entryTime)) newPlayerEntryTimes.Add(key, entryTime);
                 }
                 else
                 {
@@ -1008,7 +984,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             playerVm.Update(userData, playerVm.Rank, FightDurationText);
         }
 
-        // [修改] 始终通知 PlayerCount 可能已更改，确保UI实时同步
+        // 始终通知 PlayerCount 可能已更改，确保UI实时同步
         OnPropertyChanged(nameof(PlayerCount));
 
         // 返回一个包含两个布尔值的元组
@@ -1027,10 +1003,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
         if (playersForCalcs.Count == 0)
         {
-            foreach (var p in Players)
-            {
-                p.UpdateDisplayPercentages(0, 0, 0, 0, 0, null);
-            }
+            foreach (var p in Players) p.UpdateDisplayPercentages(0, 0, 0, 0, 0, null);
 
             UpdateColumnTotals();
             return;
@@ -1064,10 +1037,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             PlayersView.Refresh();
             var rank = 1;
             // 关键修复：遍历排序后的 PlayersView 而不是未排序的 Players 集合
-            foreach (PlayerViewModel p in PlayersView)
-            {
-                p.Rank = (IsSmartIdleModeEnabled && p.IsIdle) ? 0 : rank++;
-            }
+            foreach (PlayerViewModel p in PlayersView) p.Rank = IsSmartIdleModeEnabled && p.IsIdle ? 0 : rank++;
         });
 
         UpdateColumnTotals();
@@ -1129,10 +1099,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                     // 如果服务器未暂停，则执行与首次启动一致的逻辑
                     IsPaused = false;
                     var initialData = await _apiService.GetInitialDataAsync();
-                    if (initialData != null)
-                    {
-                        await ProcessData(initialData);
-                    }
+                    if (initialData != null) await ProcessData(initialData);
 
                     ShowNotification("已返回实时模式");
                 }
@@ -1154,9 +1121,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
             return;
         }
-
-// ...
-        // 以下是处理非快照模式下的重置逻辑
+        
+        //处理非快照模式下的重置逻辑
         _fightTimer.Stop();
         _elapsedSeconds = 0;
         FightDurationText = "0:00";
@@ -1183,10 +1149,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         // 立即通过HTTP请求获取一次完整的当前数据
         var refreshedData = await _apiService.GetInitialDataAsync();
         if (refreshedData != null)
-        {
             // 使用ProcessData方法将数据一次性加载到UI
             await ProcessData(refreshedData);
-        }
     }
 
     [RelayCommand]
@@ -1296,18 +1260,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         if (FontSize > 10) FontSize--;
     }
 
-    public static class SortableColumns
-    {
-        public const string Name = nameof(PlayerViewModel.DisplayName);
-        public const string FightPoint = nameof(PlayerViewModel.FightPoint);
-        public const string Profession = nameof(PlayerViewModel.Profession);
-        public const string TotalDamage = nameof(PlayerViewModel.TotalDamage);
-        public const string TotalHealing = nameof(PlayerViewModel.TotalHealing);
-        public const string TotalDps = nameof(PlayerViewModel.TotalDps);
-        public const string TotalHps = nameof(PlayerViewModel.TotalHps);
-        public const string TakenDamage = nameof(PlayerViewModel.TakenDamage);
-    }
-
     /// <summary>
     ///     当新玩家首次出现时，异步获取其基础属性数据（如等级、臂章等）用于Tooltip显示。
     /// </summary>
@@ -1357,9 +1309,18 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         }
 
         // 如果有玩家的状态变为了闲置，则调用 UpdatePlayerList 来刷新UI
-        if (needsRefresh)
-        {
-            UpdatePlayerList();
-        }
+        if (needsRefresh) UpdatePlayerList();
+    }
+
+    public static class SortableColumns
+    {
+        public const string Name = nameof(PlayerViewModel.DisplayName);
+        public const string FightPoint = nameof(PlayerViewModel.FightPoint);
+        public const string Profession = nameof(PlayerViewModel.Profession);
+        public const string TotalDamage = nameof(PlayerViewModel.TotalDamage);
+        public const string TotalHealing = nameof(PlayerViewModel.TotalHealing);
+        public const string TotalDps = nameof(PlayerViewModel.TotalDps);
+        public const string TotalHps = nameof(PlayerViewModel.TotalHps);
+        public const string TakenDamage = nameof(PlayerViewModel.TakenDamage);
     }
 }

@@ -69,19 +69,13 @@ public partial class MainWindow
 
     private void MainWindow_OnStateChanged(object? sender, EventArgs e)
     {
-        if (WindowState == WindowState.Minimized)
-        {
-            Hide();
-        }
+        if (WindowState == WindowState.Minimized) Hide();
     }
 
     private void TaskbarIcon_OnTrayMouseDoubleClick(object sender, RoutedEventArgs e)
     {
         // 仅在窗口最小化或不可见时才执行恢复操作
-        if (WindowState == WindowState.Minimized || !IsVisible)
-        {
-            RestoreWindow();
-        }
+        if (WindowState == WindowState.Minimized || !IsVisible) RestoreWindow();
     }
 
     private void RestoreMenuItem_OnClick(object sender, RoutedEventArgs e)

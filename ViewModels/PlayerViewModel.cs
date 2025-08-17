@@ -10,7 +10,7 @@ using StarResonance.DPS.Services;
 namespace StarResonance.DPS.ViewModels;
 
 /// <summary>
-/// 表示单个玩家数据及其在UI中状态的视图模型。
+///     表示单个玩家数据及其在UI中状态的视图模型。
 /// </summary>
 /// <param name="uid">玩家的唯一ID。</param>
 /// <param name="localizationService">用于UI文本本地化的服务。</param>
@@ -23,18 +23,20 @@ public partial class PlayerViewModel(
     [ObservableProperty] private string? _accurateCritDamageText;
     [ObservableProperty] private string? _accurateCritHealingText;
     [ObservableProperty] private string? _damageDisplayPercentage;
-    [ObservableProperty] private string? _dpsDisplayPercentage;
-
-    [ObservableProperty] private string? _hpsDisplayPercentage;
     private UserData? _data;
+    [ObservableProperty] private string? _dpsDisplayPercentage;
     private string _fightDuration = "0:00";
 
     [ObservableProperty] private int _fightPoint;
 
     [ObservableProperty] private string? _healingDisplayPercentage;
+
+    [ObservableProperty] private string? _hpsDisplayPercentage;
     private bool _isExpanded;
 
     [ObservableProperty] private bool _isIdle;
+
+    [ObservableProperty] private bool _isLoadingSkills;
     [ObservableProperty] private string _name = null!;
     [ObservableProperty] private Brush _nameColor = Brushes.White;
     [ObservableProperty] private string _profession = null!;
@@ -50,12 +52,7 @@ public partial class PlayerViewModel(
     [ObservableProperty] private double _totalHps;
 
     /// <summary>
-    ///     一个锁标志，防止对同一个玩家同时发起多个数据请求。
-    /// </summary>
-    public bool IsFetchingSkillData { get; set; }
-
-    /// <summary>
-    /// 用于从快照数据创建玩家视图模型的构造函数。
+    ///     用于从快照数据创建玩家视图模型的构造函数。
     /// </summary>
     /// <param name="snapshot">包含玩家原始数据和技能数据的快照对象。</param>
     /// <param name="fightDuration">战斗持续时间的字符串表示。</param>
@@ -82,6 +79,11 @@ public partial class PlayerViewModel(
         CalculateAccurateCritHealing(RawSkillData.Skills);
     }
 
+    /// <summary>
+    ///     一个锁标志，防止对同一个玩家同时发起多个数据请求。
+    /// </summary>
+    public bool IsFetchingSkillData { get; set; }
+
     public UserData? UserData { get; private set; }
     public SkillApiResponseData? RawSkillData { get; set; }
     public string DisplayName => Name;
@@ -106,13 +108,13 @@ public partial class PlayerViewModel(
     public Visibility ExpandedVisibility => IsExpanded ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>
-    /// 控制暴击伤害分析文本的可见性。
+    ///     控制暴击伤害分析文本的可见性。
     /// </summary>
     public Visibility CritDamageVisibility =>
         !string.IsNullOrEmpty(AccurateCritDamageText) ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>
-    /// 控制暴击治疗分析文本的可见性。
+    ///     控制暴击治疗分析文本的可见性。
     /// </summary>
     public Visibility CritHealingVisibility =>
         !string.IsNullOrEmpty(AccurateCritHealingText) ? Visibility.Visible : Visibility.Collapsed;
@@ -184,8 +186,6 @@ public partial class PlayerViewModel(
         }
     }
 
-    public void NotifyTooltipUpdate() => OnPropertyChanged(nameof(ToolTipText));
-
     public string CopyableString
     {
         get
@@ -222,8 +222,13 @@ public partial class PlayerViewModel(
         }
     }
 
+    public void NotifyTooltipUpdate()
+    {
+        OnPropertyChanged(nameof(ToolTipText));
+    }
+
     /// <summary>
-    /// 计算并返回指定类型技能的精确暴击/暴疗加成百分比文本。
+    ///     计算并返回指定类型技能的精确暴击/暴疗加成百分比文本。
     /// </summary>
     /// <param name="skillType">要计算的技能类型 ("伤害" 或 "治疗")。</param>
     /// <returns>格式化为百分比的加成字符串，或在数据不足时返回"不适用"。</returns>
@@ -238,14 +243,12 @@ public partial class PlayerViewModel(
             type == skillType).ToList();
 
         if (validSkills != null)
-        {
             multipliers.AddRange(from skill in validSkills
                 let avgNormal = skill.DamageBreakdown.Normal / skill.CountBreakdown.Normal
                 where !(avgNormal <= 0)
                 let totalCritValue = skill.DamageBreakdown.Critical + skill.DamageBreakdown.CritLucky
                 let avgCrit = totalCritValue / skill.CountBreakdown.Critical
                 select (avgCrit / avgNormal, skill.TotalDamage));
-        }
 
         // 基于所有有效技能的数据，进行加权平均计算
         if (multipliers.Count == 0) return localizationService["NotApplicable"] ?? "数据不足";
@@ -260,7 +263,7 @@ public partial class PlayerViewModel(
     }
 
     /// <summary>
-    /// 计算精确的暴击伤害加成。
+    ///     计算精确的暴击伤害加成。
     /// </summary>
     /// <param name="skillsData">用于计算的技能数据字典。</param>
     public void CalculateAccurateCritDamage(IReadOnlyDictionary<string, SkillData> skillsData)
@@ -271,7 +274,7 @@ public partial class PlayerViewModel(
     }
 
     /// <summary>
-    /// 计算精确的暴击治疗加成。
+    ///     计算精确的暴击治疗加成。
     /// </summary>
     /// <param name="skillsData">用于计算的技能数据字典。</param>
     public void CalculateAccurateCritHealing(IReadOnlyDictionary<string, SkillData> skillsData)
@@ -294,8 +297,6 @@ public partial class PlayerViewModel(
             notificationService.ShowNotification(localizationService["CopyFailed"] ?? "复制失败: 无法访问剪贴板");
         }
     }
-
-    [ObservableProperty] private bool _isLoadingSkills;
 
     public void SetLoadingSkills(bool isLoading)
     {
@@ -322,19 +323,18 @@ public partial class PlayerViewModel(
         TotalDps = data.TotalDps;
         TotalHps = data.TotalHps;
         TakenDamage = data.TakenDamage;
-        
+
         if (oldName != Name ||
             oldProfession != Profession ||
             oldFightPoint != FightPoint ||
             oldTotalCount != data.TotalCount)
-        {
             OnPropertyChanged(nameof(ToolTipText));
-        }
 
         OnComputedPropertiesChanged();
     }
+
     /// <summary>
-    /// 批量更新百分比属性
+    ///     批量更新百分比属性
     /// </summary>
     /// <param name="damagePct">总伤害</param>
     /// <param name="healingPct">总治疗</param>
@@ -342,7 +342,8 @@ public partial class PlayerViewModel(
     /// <param name="hpsPct">总HPS</param>
     /// <param name="takenDamagePct">承伤</param>
     /// <param name="sortColumn">排序</param>
-    public void UpdateDisplayPercentages(double damagePct, double healingPct, double dpsPct, double hpsPct, double takenDamagePct, string? sortColumn)
+    public void UpdateDisplayPercentages(double damagePct, double healingPct, double dpsPct, double hpsPct,
+        double takenDamagePct, string? sortColumn)
     {
         DamageDisplayPercentage = null;
         HealingDisplayPercentage = null;

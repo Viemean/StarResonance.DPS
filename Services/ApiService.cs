@@ -7,7 +7,7 @@ using StarResonance.DPS.Models;
 namespace StarResonance.DPS.Services;
 
 /// <summary>
-/// 提供与后端服务进行API交互的功能，包括HTTP请求和WebSocket通信。
+///     提供与后端服务进行API交互的功能，包括HTTP请求和WebSocket通信。
 /// </summary>
 public class ApiService : IAsyncDisposable
 {
@@ -28,17 +28,20 @@ public class ApiService : IAsyncDisposable
     }
 
     /// <summary>
-    /// 当接收到新的数据时触发。
+    ///     当接收到新的数据时触发。
     /// </summary>
     public event Action<ApiResponse>? DataReceived;
+
     /// <summary>
-    /// 当WebSocket成功连接时触发。
+    ///     当WebSocket成功连接时触发。
     /// </summary>
     public event Action? OnConnected;
+
     /// <summary>
-    /// 当WebSocket断开连接时触发。
+    ///     当WebSocket断开连接时触发。
     /// </summary>
     public event Action? OnDisconnected;
+
     private void InitializeClients()
     {
         var httpBaseUrl = _baseUrl.Replace("ws://", "http://").Replace("wss://", "https://");
@@ -63,7 +66,7 @@ public class ApiService : IAsyncDisposable
     }
 
     /// <summary>
-    /// 重新初始化服务以连接到新的基地址。会先断开旧连接。
+    ///     重新初始化服务以连接到新的基地址。会先断开旧连接。
     /// </summary>
     /// <param name="baseUrl">新的后端服务地址 (例如 "ws://localhost:8989")。</param>
     public async Task ReinitializeAsync(string baseUrl)
@@ -85,7 +88,7 @@ public class ApiService : IAsyncDisposable
     }
 
     /// <summary>
-    /// 异步连接到 WebSocket 服务器。如果已经连接，则此操作无效。
+    ///     异步连接到 WebSocket 服务器。如果已经连接，则此操作无效。
     /// </summary>
     public async Task ConnectAsync()
     {
@@ -93,7 +96,7 @@ public class ApiService : IAsyncDisposable
     }
 
     /// <summary>
-    /// 检查后端HTTP服务是否正在运行。
+    ///     检查后端HTTP服务是否正在运行。
     /// </summary>
     /// <param name="ct">取消令牌。</param>
     /// <returns>如果服务正在运行并成功响应，则为 true；否则为 false。</returns>
@@ -112,7 +115,7 @@ public class ApiService : IAsyncDisposable
     }
 
     /// <summary>
-    /// 从服务器获取初始的完整DPS数据。
+    ///     从服务器获取初始的完整DPS数据。
     /// </summary>
     /// <returns>包含所有玩家数据的 ApiResponse 对象，如果失败则返回 null。</returns>
     public async Task<ApiResponse?> GetInitialDataAsync()
@@ -134,11 +137,11 @@ public class ApiService : IAsyncDisposable
     }
 
     /// <summary>
-    /// 根据玩家UID异步获取其详细的技能数据。
+    ///     根据玩家UID异步获取其详细的技能数据。
     /// </summary>
     /// <param name="uid">玩家的唯一ID。</param>
     /// <param name="ct">取消令牌。</param>
-    /// <returns>包含技能数据的 <see cref="SkillApiResponse"/>，如果失败则返回 null。</returns>
+    /// <returns>包含技能数据的 <see cref="SkillApiResponse" />，如果失败则返回 null。</returns>
     public async Task<SkillApiResponse?> GetSkillDataAsync(long uid, CancellationToken ct = default)
     {
         if (_httpClient == null) return null;

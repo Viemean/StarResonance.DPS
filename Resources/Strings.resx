@@ -171,7 +171,7 @@
     <data name="AccurateCritDamageLabel" xml:space="preserve">
     <value>暴伤加成 (分析值): </value>
   </data>
-  <data name="AccurateCritHealingLabel" xml:space="preserve">
+    <data name="AccurateCritHealingLabel" xml:space="preserve">
     <value>暴疗加成 (分析值): </value>
   </data>
     <data name="NotApplicable" xml:space="preserve">
@@ -180,22 +180,22 @@
     <data name="PauseOnSnapshot" xml:space="preserve">
     <value>进入快照时暂停服务</value>
   </data>
-  <data name="Tooltip_MaxCountdown" xml:space="preserve">
+    <data name="Tooltip_MaxCountdown" xml:space="preserve">
     <value>最大可接受60分钟</value>
   </data>
-  <data name="Error_InvalidCountdownMinutes" xml:space="preserve">
+    <data name="Error_InvalidCountdownMinutes" xml:space="preserve">
     <value>请输入一个有效的分钟数 (1-60)</value>
   </data>
-  <data name="Tooltip_CharacterLevel" xml:space="preserve">
+    <data name="Tooltip_CharacterLevel" xml:space="preserve">
     <value>角色等级:</value>
   </data>
-  <data name="Tooltip_RankLevel" xml:space="preserve">
+    <data name="Tooltip_RankLevel" xml:space="preserve">
     <value>臂章等级:</value>
   </data>
-  <data name="Tooltip_MaxHP" xml:space="preserve">
+    <data name="Tooltip_MaxHP" xml:space="preserve">
     <value>最大生命值:</value>
   </data>
-  <data name="Unknown" xml:space="preserve">
+    <data name="Unknown" xml:space="preserve">
     <value>未知</value>
   </data>
 </root>
