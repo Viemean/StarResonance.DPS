@@ -77,7 +77,11 @@ public partial class MainWindow
 
     private void TaskbarIcon_OnTrayMouseDoubleClick(object sender, RoutedEventArgs e)
     {
-        RestoreWindow();
+        // 仅在窗口最小化或不可见时才执行恢复操作
+        if (WindowState == WindowState.Minimized || !IsVisible)
+        {
+            RestoreWindow();
+        }
     }
 
     private void RestoreMenuItem_OnClick(object sender, RoutedEventArgs e)
