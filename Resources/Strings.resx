@@ -198,4 +198,16 @@
     <data name="Unknown" xml:space="preserve">
     <value>未知</value>
   </data>
+  <data name="Placeholder_ById" xml:space="preserve">
+    <value>请输入前几位ID或完整ID</value>
+  </data>
+  <data name="Placeholder_ByName" xml:space="preserve">
+    <value>请输入昵称包含的任意字符</value>
+  </data>
+  <data name="SearchMode_ById" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="SearchMode_ByName" xml:space="preserve">
+    <value>昵称</value>
+  </data>
 </root>

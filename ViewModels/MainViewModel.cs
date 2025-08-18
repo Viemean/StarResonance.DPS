@@ -54,7 +54,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     //闲置时长
     private const int IdleTimeoutSeconds = 30;
 
-    // 新增：缓存并重用 JsonSerializerOptions 实例以优化性能
+    // 缓存并重用 JsonSerializerOptions 实例以优化性能
     private static readonly JsonSerializerOptions SnapshotSerializerOptions = new()
     {
         WriteIndented = true,
@@ -76,7 +76,20 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     private readonly DispatcherTimer _stateSaveTimer;
 
     private readonly DispatcherTimer _uiUpdateTimer;
+    private readonly DispatcherTimer _searchDebounceTimer; // 防抖计时器
+    public enum SearchMode
+    {
+        ById,
+        ByName
+    }
+    // 为本地化的ComboBox创建数据结构
+    public class SearchModeItem
+    {
+        public SearchMode Mode { get; init; }
+        public string DisplayName { get; init; } = string.Empty;
+    }
     [ObservableProperty] private string _backendUrl = "ws://localhost:8989";
+
     [ObservableProperty] private Brush _connectionStatusColor = Brushes.Orange;
     [ObservableProperty] private string _connectionStatusText = "正在连接...";
     [ObservableProperty] private string _countdownText = "倒计时";
@@ -130,7 +143,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     private DateTime _lastCombatActivityTime;
     private ApiResponse? _latestReceivedData;
-    private ApiResponse? _liveDataCacheWhileInSnapshot; // 新增：用于在快照模式下缓存实时数据
+    private ApiResponse? _liveDataCacheWhileInSnapshot; // 用于在快照模式下缓存实时数据
 
     [ObservableProperty] private string _loadedSnapshotFileName = "";
     [ObservableProperty] private string _lockIconContent = "🔓";
@@ -140,6 +153,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [ObservableProperty] private Brush _pauseStatusColor = Brushes.LimeGreen;
     [ObservableProperty] private ObservableCollection<PlayerViewModel> _players = [];
     [ObservableProperty] private ICollectionView _playersView;
+    [ObservableProperty] private string _searchFilterText = string.Empty; // 搜索框文本
+
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(SearchPlaceholderText))]
+    private SearchModeItem? _selectedSearchModeItem;
+
     [ObservableProperty] private FontFamily _selectedFontFamily;
     [ObservableProperty] private string? _sortColumn;
     [ObservableProperty] private ListSortDirection _sortDirection = ListSortDirection.Descending;
@@ -158,7 +176,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [ObservableProperty] private double _windowTop = 100;
     [ObservableProperty] private double _windowWidth = 700;
 
-    public MainViewModel(ApiService apiService, LocalizationService localizationService)
+public MainViewModel(ApiService apiService, LocalizationService localizationService)
     {
         _skillUpdateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _skillUpdateTimer.Tick += SkillUpdateTimer_Tick;
@@ -170,10 +188,15 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
         //初始化 Players 集合的默认视图
         PlayersView = CollectionViewSource.GetDefaultView(Players);
-
+        
         _onLocalizationPropertyChanged = (_, e) =>
         {
             OnPropertyChanged(string.IsNullOrEmpty(e.PropertyName) ? string.Empty : nameof(Localization));
+            // 当语言文化改变时，更新搜索模式的显示文本
+            if (e.PropertyName == nameof(LocalizationService.CurrentCulture) || string.IsNullOrEmpty(e.PropertyName))
+            {
+                UpdateLocalizedSearchModes();
+            }
         };
 
 
@@ -196,6 +219,15 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         _stateSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _stateSaveTimer.Tick += (_, _) => SaveState();
         _stateSaveTimer.Start();
+        
+        // 初始化防抖计时器 (使用弃元 '_' 消除警告)
+        _searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+        _searchDebounceTimer.Tick += (_, _) =>
+        {
+            _searchDebounceTimer.Stop();
+            ApplyFilter();
+        };
+        UpdateLocalizedSearchModes();
 
         // 初始化时设置默认排序
         SortColumn = "TotalDps";
@@ -206,9 +238,68 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
         ConnectionStatusText = Localization["Connecting"] ?? "正在连接...";
         PauseButtonText = Localization["Pause"] ?? "暂停";
+    }    
+    public ObservableCollection<SearchModeItem> LocalizedSearchModes { get; } = new();
+    public string SearchPlaceholderText => SelectedSearchModeItem?.Mode switch
+    {
+        SearchMode.ById => Localization["Placeholder_ById"] ?? "...", // 移除了多余的 '?'
+        SearchMode.ByName => Localization["Placeholder_ByName"] ?? "...", // 移除了多余的 '?'
+        _ => "搜索..."
+    };
+    private void UpdateLocalizedSearchModes()
+    { 
+        var currentMode = SelectedSearchModeItem?.Mode ?? SearchMode.ByName;
+        LocalizedSearchModes.Clear();
+        LocalizedSearchModes.Add(new SearchModeItem { Mode = SearchMode.ByName, DisplayName = Localization["SearchMode_ByName"] ?? "Name"});
+        LocalizedSearchModes.Add(new SearchModeItem { Mode = SearchMode.ById, DisplayName = Localization["SearchMode_ById"] ?? "ID"});
+        
+        SelectedSearchModeItem = LocalizedSearchModes.FirstOrDefault(i => i.Mode == currentMode);
+    }
+    public void ShowNotification(string message)
+    {
+        NotificationText = message;
+        IsNotificationVisible = true;
+        _notificationTimer.Stop();
+        _notificationTimer.Start();
+    }
+    
+    partial void OnSearchFilterTextChanged(string value)
+    {
+        _ = value;
+        // 重置并启动防抖计时器
+        _searchDebounceTimer.Stop();
+        _searchDebounceTimer.Start();
+    }
+    
+    partial void OnSelectedSearchModeItemChanged(SearchModeItem? value)
+    {
+        _ = value; 
+        ApplyFilter();
     }
 
-    //用于替换 IValueConverter 的计算属性
+    private void ApplyFilter() 
+    {
+        if (SelectedSearchModeItem is null) return;
+
+        var filterText = SearchFilterText.Trim();
+
+        if (string.IsNullOrEmpty(filterText))
+        {
+            foreach (var player in Players)
+            {
+                player.IsMatchInFilter = true;
+            }
+            return;
+        }
+
+        foreach (var player in Players)
+        {
+            
+            player.IsMatchInFilter = SelectedSearchModeItem.Mode == SearchMode.ByName
+                ? player.DisplayName.Contains(filterText, StringComparison.OrdinalIgnoreCase)
+                : player.Uid.ToString().StartsWith(filterText);
+        }
+    }    //用于替换 IValueConverter 的计算属性
     public Visibility SnapshotModeVisibility => IsInSnapshotMode ? Visibility.Visible : Visibility.Collapsed;
     public Visibility RealtimeModeVisibility => IsInSnapshotMode ? Visibility.Collapsed : Visibility.Visible;
     public Visibility CountdownRunningVisibility => IsCountdownRunning ? Visibility.Visible : Visibility.Collapsed;
@@ -247,14 +338,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         await _apiService.DisposeAsync();
         GC.SuppressFinalize(this);
     }
-
-    public void ShowNotification(string message)
-    {
-        NotificationText = message;
-        IsNotificationVisible = true;
-        _notificationTimer.Stop();
-        _notificationTimer.Start();
-    }
+    
 
     partial void OnIsSmartIdleModeEnabledChanged(bool value)
     {
@@ -290,17 +374,16 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     /// </summary>
     private void ApplySorting()
     {
-        // 在修改 SortDescriptions 之前，最好先切换到UI线程
         Application.Current.Dispatcher.Invoke(() =>
         {
             PlayersView.SortDescriptions.Clear();
 
-            // 规则1：如果启用了闲置模式，总是先按是否闲置排序（不闲置的在前）
+            // 如果启用了闲置模式，总是先按是否闲置排序（不闲置的在前）
             if (IsSmartIdleModeEnabled)
                 PlayersView.SortDescriptions.Add(new SortDescription(nameof(PlayerViewModel.IsIdle),
                     ListSortDirection.Ascending));
 
-            // 规则2：根据用户选择的列进行主排序
+            // 根据用户选择的列进行主排序
             if (!string.IsNullOrEmpty(SortColumn))
                 PlayersView.SortDescriptions.Add(new SortDescription(SortColumn, SortDirection));
         });
@@ -430,10 +513,8 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 CultureName = Localization.CurrentCulture.Name,
                 PauseOnExit = IsPauseOnExitEnabled,
                 PauseOnSnapshot = IsPauseOnSnapshotEnabled,
-                //保存当前的排序设置
                 SortColumn = SortColumn,
                 SortDirection = SortDirection,
-                // 新增保存窗口状态的逻辑
                 WindowTop = WindowTop,
                 WindowLeft = WindowLeft,
                 WindowHeight = WindowHeight,
@@ -579,15 +660,14 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [RelayCommand]
     private async Task TogglePlayerExpansion(PlayerViewModel player)
     {
-        // 如果点击的玩家已经展开，则将其折叠
         if (player.IsExpanded)
         {
             player.IsExpanded = false;
             _expandedPlayer = null;
             _skillUpdateTimer.Stop();
 
-            _isSortingPaused = false; //关闭详情时，解除排序暂停
-            UpdatePlayerList(); //并立即刷新一次列表以同步最新排序
+            _isSortingPaused = false;
+            UpdatePlayerList();
             return;
         }
 
@@ -614,24 +694,21 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             // 在快照模式下，从已加载的 RawSkillData 填充技能列表
             await Application.Current.Dispatcher.InvokeAsync(() => player.Skills.Clear());
 
-            if (player.RawSkillData?.Skills != null)
-            {
-                var playerTotalValue = player.TotalDamage + player.TotalHealing;
-                var skills = player.RawSkillData.Skills.Values
-                    .OrderByDescending(s => s.TotalDamage)
-                    .Take(6)
-                    .Select(s => new SkillViewModel(s, playerTotalValue));
+            if (player.RawSkillData?.Skills == null) return; // 快照模式处理完毕，直接返回
+            var playerTotalValue = player.TotalDamage + player.TotalHealing;
+            var skills = player.RawSkillData.Skills.Values
+                .OrderByDescending(s => s.TotalDamage)
+                .Take(6)
+                .Select(s => new SkillViewModel(s, playerTotalValue));
 
-                await Application.Current.Dispatcher.InvokeAsync(() =>
-                {
-                    foreach (var skillVm in skills) player.Skills.Add(skillVm);
-                });
-            }
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                foreach (var skillVm in skills) player.Skills.Add(skillVm);
+            });
 
             return; // 快照模式处理完毕，直接返回
         }
-
-        // 实时模式的逻辑
+        
         try
         {
             player.IsFetchingSkillData = true;
@@ -770,7 +847,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
             UpdatePlayerList();
 
-            // 新增：手动通知UI更新PlayerCount属性
+            // 手动通知UI更新PlayerCount属性
             OnPropertyChanged(nameof(PlayerCount));
 
             var fileNameToShow = Path.GetFileName(openFileDialog.FileName);
@@ -791,7 +868,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     {
         _uiUpdateTimer.Interval = TimeSpan.FromMilliseconds(UiUpdateInterval);
     }
-    
+
     private void OnDataReceived(ApiResponse data)
     {
         // --- 新增逻辑 ---
@@ -802,14 +879,16 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             {
                 _liveDataCacheWhileInSnapshot = data;
             }
+
             return;
         }
-        
+
         lock (_dataLock)
         {
             _latestReceivedData = data;
         }
     }
+
     private void UiUpdateTimer_Tick(object? sender, EventArgs e)
     {
         try
@@ -1051,12 +1130,13 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             // --- 修改部分：为所有玩家计算并存储原始百分比 ---
             player.DamagePercent = totalDamage > 0 ? player.TotalDamage / totalDamage : 0;
             player.HealingPercent = totalHealing > 0 ? player.TotalHealing / totalHealing : 0;
-            
+
             var dpsPct = totalDps > 0 ? player.TotalDps / totalDps * 100 : 0;
             var hpsPct = totalHps > 0 ? player.TotalHps / totalHps * 100 : 0;
             var takenDamagePct = totalTakenDamage > 0 ? player.TakenDamage / totalTakenDamage * 100 : 0;
-            
-            player.UpdateDisplayPercentages(player.DamagePercent * 100, player.HealingPercent * 100, dpsPct, hpsPct, takenDamagePct, SortColumn);
+
+            player.UpdateDisplayPercentages(player.DamagePercent * 100, player.HealingPercent * 100, dpsPct, hpsPct,
+                takenDamagePct, SortColumn);
         }
 
         Application.Current.Dispatcher.Invoke(() =>
@@ -1099,10 +1179,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         {
             IsInSnapshotMode = false;
             LoadedSnapshotFileName = "";
-    
+
             // 重置战斗状态
             _fightTimer.Stop();
-    
+
             // --- 修改部分 ---
             if (IsPauseOnSnapshotEnabled)
             {
@@ -1111,10 +1191,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 FightDurationText = "0:00";
                 _isFightActive = false;
                 _lastCombatActivityTime = DateTime.MinValue;
-    
+
                 Players.Clear();
                 _playerCache.Clear();
-    
+
                 var (success, isPaused) = await _apiService.GetPauseStateAsync();
                 if (success && isPaused)
                 {
@@ -1128,7 +1208,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                     if (initialData != null) await ProcessData(initialData);
                     ShowNotification("已返回实时模式");
                 }
-    
+
                 _apiService.DataReceived += OnDataReceived;
                 _uiUpdateTimer.Start();
                 await _apiService.ConnectAsync();
@@ -1138,14 +1218,14 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 // 如果服务未暂停，则使用缓存数据进行无缝切换
                 Players.Clear();
                 _playerCache.Clear();
-    
+
                 ApiResponse? dataToProcess;
                 lock (_dataLock)
                 {
                     dataToProcess = _liveDataCacheWhileInSnapshot;
                     _liveDataCacheWhileInSnapshot = null;
                 }
-    
+
                 if (dataToProcess != null)
                 {
                     await ProcessData(dataToProcess);
@@ -1156,11 +1236,11 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                     var initialData = await _apiService.GetInitialDataAsync();
                     if (initialData != null) await ProcessData(initialData);
                 }
-    
+
                 _uiUpdateTimer.Start();
                 ShowNotification("已返回实时模式");
             }
-    
+
             OnPropertyChanged(nameof(PlayerCount));
             return;
         }

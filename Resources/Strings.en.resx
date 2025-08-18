@@ -199,4 +199,16 @@
     <data name="Unknown" xml:space="preserve">
     <value>Unknown</value>
   </data>
+  <data name="SearchMode_ById" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="SearchMode_ByName" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Placeholder_ById" xml:space="preserve">
+    <value>Enter start of or full ID</value>
+  </data>
+  <data name="Placeholder_ByName" xml:space="preserve">
+    <value>Enter any part of the name</value>
+  </data>
 </root>

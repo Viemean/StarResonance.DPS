@@ -24,10 +24,135 @@
         ResizeMode="CanResizeWithGrip">
 
     <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
         <converters:SortDirectionToArrowConverter x:Key="SortDirectionToArrowConverter" />
         <converters:SortColumnVisibilityConverter x:Key="SortColumnVisibilityConverter" />
         <converters:FontFamilyNameConverter x:Key="FontFamilyNameConverter" />
+
+        <Style x:Key="DarkComboBoxItemStyle" TargetType="{x:Type ComboBoxItem}">
+            <Setter Property="SnapsToDevicePixels" Value="true" />
+            <Setter Property="Padding" Value="4,2" />
+            <Setter Property="HorizontalContentAlignment"
+                    Value="{Binding HorizontalContentAlignment, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}" />
+            <Setter Property="VerticalContentAlignment"
+                    Value="{Binding VerticalContentAlignment, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBoxItem}">
+                        <Border x:Name="Bd"
+                                Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                SnapsToDevicePixels="true">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="true">
+                                <Setter TargetName="Bd" Property="Background" Value="#44FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="false">
+                                <Setter Property="Foreground" Value="#88FFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ComboBoxTransparentToggleButton" TargetType="{x:Type ToggleButton}">
+            <Setter Property="OverridesDefaultStyle" Value="true" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                        <Border x:Name="templateRoot" Background="#555" BorderBrush="#666"
+                                BorderThickness="{TemplateBinding BorderThickness}" SnapsToDevicePixels="true">
+                            <Border x:Name="splitBorder" BorderBrush="Transparent" BorderThickness="1"
+                                    HorizontalAlignment="Right" Margin="0" SnapsToDevicePixels="true"
+                                    Width="{DynamicResource {x:Static SystemParameters.VerticalScrollBarWidthKey}}">
+                                <Path x:Name="arrow" Data="F1 M 0,0 L 2.5,2.5 L 5,0 Z" Fill="White"
+                                      HorizontalAlignment="Center" Margin="0" VerticalAlignment="Center" />
+                            </Border>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="true">
+                                <Setter Property="Background" TargetName="templateRoot" Value="#44FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="true">
+                                <Setter Property="Background" TargetName="templateRoot" Value="#66FFFFFF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DarkComboBoxStyle" TargetType="{x:Type ComboBox}">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Padding" Value="6,3,5,3" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#666" />
+            <Setter Property="Background" Value="#555" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+            <Setter Property="ItemContainerStyle" Value="{StaticResource DarkComboBoxItemStyle}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBox}">
+                        <Grid x:Name="templateRoot" SnapsToDevicePixels="true">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition
+                                    MinWidth="{DynamicResource {x:Static SystemParameters.VerticalScrollBarWidthKey}}"
+                                    Width="0" />
+                            </Grid.ColumnDefinitions>
+                            <Popup x:Name="PART_Popup" AllowsTransparency="true" Grid.ColumnSpan="2"
+                                   IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                   Placement="Bottom"
+                                   PopupAnimation="{DynamicResource {x:Static SystemParameters.ComboBoxPopupAnimationKey}}">
+                                <Border x:Name="dropDownBorder"
+                                        Background="#DD222222"
+                                        BorderBrush="#888"
+                                        BorderThickness="1"
+                                        CornerRadius="4"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                        MinWidth="{Binding ActualWidth, ElementName=templateRoot}">
+                                    <ScrollViewer x:Name="DropDownScrollViewer">
+                                        <ItemsPresenter x:Name="PART_ItemsPresenter" IsHitTestVisible="True"
+                                                        KeyboardNavigation.DirectionalNavigation="Contained"
+                                                        SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                            <ToggleButton x:Name="toggleButton" Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}" Grid.ColumnSpan="2"
+                                          Grid.Column="0"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          Style="{StaticResource ComboBoxTransparentToggleButton}" />
+                            <ContentPresenter x:Name="contentPresenter" Grid.Column="0"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              IsHitTestVisible="false" Margin="{TemplateBinding Padding}"
+                                              SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="HasItems" Value="false">
+                                <Setter Property="Height" TargetName="dropDownBorder" Value="95" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="false">
+                                <Setter Property="Opacity" Value="0.56" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
         <Style TargetType="ToolTip">
             <Setter Property="Background" Value="Transparent" />
@@ -173,76 +298,8 @@
 
                 <Border Grid.Row="0" Background="#333" CornerRadius="8,8,0,0" Padding="5"
                         MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" /> <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="5,0">
-                            <Button Content="💾" ToolTip="创建快照"
-                                    Command="{Binding SaveSnapshotCommand}" Padding="8,2"
-                                    Style="{StaticResource TransparentButtonStyle}" />
-                            <Button Content="📂" ToolTip="导入快照"
-                                    Command="{Binding LoadSnapshotCommand}" Padding="8,2"
-                                    Style="{StaticResource TransparentButtonStyle}" Margin="5,0,0,0" />
-                            <TextBlock Text="{Binding CurrentTime}" Foreground="Cyan" FontWeight="Bold"
-                                       VerticalAlignment="Center" Margin="8,0,0,0" />
-                        </StackPanel>
-
-                        <Grid Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal" Visibility="{Binding RealtimeModeVisibility}">
-                                <Ellipse Width="10" Height="10" Fill="{Binding PauseStatusColor}" Margin="5,0,5,0"
-                                         VerticalAlignment="Center" />
-                                <Button Content="{Binding PauseButtonText}" Click="PauseButton_Click"
-                                        Style="{StaticResource TransparentButtonStyle}" />
-                                <Button Content="{Binding Localization[Reset]}" Click="ResetButton_Click"
-                                        Style="{StaticResource TransparentButtonStyle}" />
-                                <Separator Margin="5,0" />
-                                <Ellipse Width="10" Height="10" Fill="{Binding ConnectionStatusColor}" Margin="0,0,5,0"
-                                         VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding ConnectionStatusText}" Foreground="Gray"
-                                           VerticalAlignment="Center" />
-                                <Separator Margin="5,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" />
-                                <Button Content="❌" ToolTip="{Binding Localization[AbortCountdown]}"
-                                        VerticalAlignment="Center" Click="AbortCountdownButton_Click" Margin="0,0,5,0"
-                                        Style="{StaticResource TransparentButtonStyle}"
-                                        Visibility="{Binding CountdownRunningVisibility}" />
-                                <Grid VerticalAlignment="Center" Margin="0,0,5,0" MinWidth="30">
-                                    <TextBlock Text="{Binding CountdownText}" Foreground="Orange" FontWeight="Bold"
-                                               HorizontalAlignment="Center"
-                                               Visibility="{Binding IsCountdownRunning, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                    <Grid Visibility="{Binding RealtimeModeVisibility}">
-                                        <TextBlock Text="{Binding Localization[Pause]}" Foreground="Red"
-                                                   FontWeight="Bold"
-                                                   HorizontalAlignment="Center"
-                                                   Visibility="{Binding PauseStatusVisibility}" />
-                                        <TextBlock Text="{Binding FightDurationText}" Foreground="White"
-                                                   FontWeight="Bold"
-                                                   HorizontalAlignment="Center"
-                                                   Visibility="{Binding FightDurationVisibility}" />
-                                    </Grid>
-                                </Grid>
-                                <Button x:Name="CountdownButton" Command="{Binding OpenCountdownOptionsCommand}"
-                                        ToolTip="{Binding Localization[Countdown]}"
-                                        Visibility="{Binding RealtimeModeVisibility}"
-                                        Style="{StaticResource TransparentButtonStyle}">
-                                    <TextBlock Text="🕒" Foreground="White" VerticalAlignment="Center" />
-                                </Button>
-                            </StackPanel>
-
-                            <StackPanel Orientation="Horizontal"
-                                        Visibility="{Binding SnapshotModeVisibility}">
-                                <TextBlock Text="[快照模式] " Foreground="Orange" FontWeight="Bold"
-                                           VerticalAlignment="Center" />
-                                <TextBlock Text="{Binding LoadedSnapshotFileName}" Foreground="White"
-                                           VerticalAlignment="Center" />
-                                <Button Content="返回实时" Click="ResetButton_Click" Margin="10,0,0,0"
-                                        Style="{StaticResource TransparentButtonStyle}" />
-                            </StackPanel>
-                        </Grid>
-
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
                             <Button Content="—" ToolTip="{Binding Localization[Minimize]}" FontWeight="Bold"
                                     Click="MinimizeButton_Click" Style="{StaticResource TransparentButtonStyle}" />
                             <Button Content="{Binding LockIconContent}"
@@ -251,7 +308,120 @@
                             <Button Content="⚙" ToolTip="{Binding Localization[Settings]}" Click="SettingsButton_Click"
                                     Style="{StaticResource TransparentButtonStyle}" />
                         </StackPanel>
-                    </Grid>
+
+                        <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center"
+                                    Margin="5,0">
+                            <Button Content="💾" ToolTip="创建快照" Command="{Binding SaveSnapshotCommand}" Padding="8,2"
+                                    Style="{StaticResource TransparentButtonStyle}" />
+                            <Button Content="📂" ToolTip="导入快照" Command="{Binding LoadSnapshotCommand}" Padding="8,2"
+                                    Style="{StaticResource TransparentButtonStyle}" Margin="5,0,0,0" />
+                            <TextBlock Text="{Binding CurrentTime}" Foreground="Cyan" FontWeight="Bold"
+                                       VerticalAlignment="Center" Margin="8,0,15,0" />
+                        </StackPanel>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="200" /> <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Grid.Column="0" Background="#22FFFFFF" CornerRadius="4" Height="24"
+                                    VerticalAlignment="Center">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <ComboBox Grid.Column="0"
+                                              ItemsSource="{Binding LocalizedSearchModes}"
+                                              SelectedItem="{Binding SelectedSearchModeItem}"
+                                              VerticalAlignment="Center"
+                                              Style="{StaticResource DarkComboBoxStyle}"
+                                              Background="Transparent"
+                                              BorderThickness="0">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding DisplayName}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+
+                                    <Grid Grid.Column="1">
+                                        <TextBox x:Name="SearchTextBox"
+                                                 Text="{Binding SearchFilterText, UpdateSourceTrigger=PropertyChanged}"
+                                                 Background="Transparent" Foreground="White" BorderThickness="0"
+                                                 VerticalContentAlignment="Center" Padding="5,0,5,0" CaretBrush="White" />
+                                        <TextBlock Text="{Binding SearchPlaceholderText}" Foreground="#66FFFFFF"
+                                                   IsHitTestVisible="False" VerticalAlignment="Center"
+                                                   Padding="7,0,0,0">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger
+                                                            Binding="{Binding Text, ElementName=SearchTextBox}"
+                                                            Value="">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+
+                            <Grid Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Visibility="{Binding RealtimeModeVisibility}">
+                                    <Ellipse Width="10" Height="10" Fill="{Binding PauseStatusColor}" Margin="5,0,5,0"
+                                             VerticalAlignment="Center" />
+                                    <Button Content="{Binding PauseButtonText}" Click="PauseButton_Click"
+                                            Style="{StaticResource TransparentButtonStyle}" />
+                                    <Button Content="{Binding Localization[Reset]}" Click="ResetButton_Click"
+                                            Style="{StaticResource TransparentButtonStyle}" />
+                                    <Separator Margin="5,0" />
+                                    <Ellipse Width="10" Height="10" Fill="{Binding ConnectionStatusColor}"
+                                             Margin="0,0,5,0" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding ConnectionStatusText}" Foreground="Gray"
+                                               VerticalAlignment="Center" />
+                                    <Separator Margin="5,0"
+                                               Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" />
+                                    <Button Content="❌" ToolTip="{Binding Localization[AbortCountdown]}"
+                                            VerticalAlignment="Center" Click="AbortCountdownButton_Click"
+                                            Margin="0,0,5,0" Style="{StaticResource TransparentButtonStyle}"
+                                            Visibility="{Binding CountdownRunningVisibility}" />
+                                    <Grid VerticalAlignment="Center" Margin="0,0,5,0" MinWidth="30">
+                                        <TextBlock Text="{Binding CountdownText}" Foreground="Orange" FontWeight="Bold"
+                                                   HorizontalAlignment="Center"
+                                                   Visibility="{Binding CountdownRunningVisibility}" />
+                                        <Grid Visibility="{Binding RealtimeModeVisibility}">
+                                            <TextBlock Text="{Binding Localization[Pause]}" Foreground="Red"
+                                                       FontWeight="Bold" HorizontalAlignment="Center"
+                                                       Visibility="{Binding PauseStatusVisibility}" />
+                                            <TextBlock Text="{Binding FightDurationText}" Foreground="White"
+                                                       FontWeight="Bold" HorizontalAlignment="Center"
+                                                       Visibility="{Binding FightDurationVisibility}" />
+                                        </Grid>
+                                    </Grid>
+                                    <Button x:Name="CountdownButton" Command="{Binding OpenCountdownOptionsCommand}"
+                                            ToolTip="{Binding Localization[Countdown]}"
+                                            Visibility="{Binding RealtimeModeVisibility}"
+                                            Style="{StaticResource TransparentButtonStyle}">
+                                        <TextBlock Text="🕒" Foreground="White" VerticalAlignment="Center" />
+                                    </Button>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Visibility="{Binding SnapshotModeVisibility}">
+                                    <TextBlock Text="[快照模式] " Foreground="Orange" FontWeight="Bold"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding LoadedSnapshotFileName}" Foreground="White"
+                                               VerticalAlignment="Center" />
+                                    <Button Content="返回实时" Click="ResetButton_Click" Margin="10,0,0,0"
+                                            Style="{StaticResource TransparentButtonStyle}" />
+                                </StackPanel>
+                            </Grid>
+                        </Grid>
+                    </DockPanel>
                 </Border>
 
                 <Grid Grid.Row="1">

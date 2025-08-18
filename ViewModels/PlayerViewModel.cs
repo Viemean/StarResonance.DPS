@@ -20,7 +20,7 @@ public partial class PlayerViewModel(
     LocalizationService localizationService,
     INotificationService notificationService) : ObservableObject
 {
-    // 新增缓存字段
+    // 缓存字段
     private string? _cachedCopyableString;
     private string? _cachedToolTipText;
 
@@ -39,6 +39,8 @@ public partial class PlayerViewModel(
     private bool _isExpanded;
 
     [ObservableProperty] private bool _isIdle;
+    [ObservableProperty] private bool _isMatchInFilter = true;
+
 
     [ObservableProperty] private bool _isLoadingSkills;
     [ObservableProperty] private string _name = null!;
@@ -55,7 +57,6 @@ public partial class PlayerViewModel(
     [ObservableProperty] private double _totalHealing;
     [ObservableProperty] private double _totalHps;
     
-    // --- 新增属性 ---
     public double DamagePercent { get; set; }
     public double HealingPercent { get; set; }
 
@@ -92,7 +93,7 @@ public partial class PlayerViewModel(
         CalculateAccurateCritDamage(RawSkillData.Skills);
         CalculateAccurateCritHealing(RawSkillData.Skills);
         
-        // --- 新增优化：在快照模式下预先计算并缓存 ---
+        // 在快照模式下预先计算并缓存
         _cachedToolTipText = BuildToolTipText();
         _cachedCopyableString = BuildCopyableString();
         if (NameColor.CanFreeze) NameColor.Freeze();
@@ -155,10 +156,10 @@ public partial class PlayerViewModel(
     public string TotalHpsTooltip => TotalHps.ToString("N2");
     public string TakenDamageTooltip => TakenDamage.ToString("N0");
 
-    // 修改 ToolTipText get访问器
+    //  ToolTipText get访问器
     public string ToolTipText => _cachedToolTipText ?? BuildToolTipText();
     
-    // 新增：构建ToolTipText的私有方法
+    // 构建ToolTipText的私有方法
     private string BuildToolTipText()
     {
         if (_data == null) return string.Empty;
@@ -206,10 +207,10 @@ public partial class PlayerViewModel(
         }
     }
 
-    // 修改 CopyableString get访问器
+    //  CopyableString get访问器
     public string CopyableString => _cachedCopyableString ?? BuildCopyableString();
 
-    // 新增：构建CopyableString的私有方法
+    // 构建CopyableString的私有方法
     private string BuildCopyableString()
     {
         if (_data == null) return string.Empty;
@@ -230,13 +231,13 @@ public partial class PlayerViewModel(
         var luckyRateLabel = (localizationService["Tooltip_LuckyRate"] ?? "Lucky Rate: ").TrimEnd(':', ' ');
         var durationLabel = localizationService["FightDuration"] ?? "Duration";
         
-        // --- 修改部分：在伤害和治疗后添加百分比 ---
+        // 在伤害和治疗后添加百分比
         var damageString = TotalDamage > 0 ? $"{TotalDamage:F0} ({DamagePercent:P1})" : $"{TotalDamage:F0}";
         var healingString = TotalHealing > 0 ? $"{TotalHealing:F0} ({HealingPercent:P1})" : $"{TotalHealing:F0}";
 
 
         return $"{rankLabel}: {Rank}, " +
-               $"{idLabel}: {Uid}, " + // --- 新增字段 ---
+               $"{idLabel}: {Uid}, " +
                $"{nameLabel}: {DisplayName}, " +
                $"{scoreLabel}: {FightPoint}, " +
                $"{professionLabel}: {Profession}, " +
