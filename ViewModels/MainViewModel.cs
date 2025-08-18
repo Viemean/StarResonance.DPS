@@ -130,6 +130,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     private DateTime _lastCombatActivityTime;
     private ApiResponse? _latestReceivedData;
+    private ApiResponse? _liveDataCacheWhileInSnapshot; // 新增：用于在快照模式下缓存实时数据
 
     [ObservableProperty] private string _loadedSnapshotFileName = "";
     [ObservableProperty] private string _lockIconContent = "🔓";
@@ -736,9 +737,13 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
                 return;
             }
 
-            if (IsPauseOnSnapshotEnabled) await _apiService.SetPauseStateAsync(true);
-
-            _apiService.DataReceived -= OnDataReceived;
+            // --- 修改部分 ---
+            if (IsPauseOnSnapshotEnabled)
+            {
+                await _apiService.SetPauseStateAsync(true);
+                _apiService.DataReceived -= OnDataReceived;
+            }
+            // 如果未勾选，则保持连接和订阅
 
             _fightTimer.Stop();
             _uiUpdateTimer.Stop(); // 停止UI刷新计时器
@@ -783,15 +788,25 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     {
         _uiUpdateTimer.Interval = TimeSpan.FromMilliseconds(UiUpdateInterval);
     }
-
+    
     private void OnDataReceived(ApiResponse data)
     {
+        // --- 新增逻辑 ---
+        if (IsInSnapshotMode)
+        {
+            // 在快照模式下，如果仍在接收数据，则将其缓存但不处理
+            lock (_dataLock)
+            {
+                _liveDataCacheWhileInSnapshot = data;
+            }
+            return;
+        }
+        
         lock (_dataLock)
         {
             _latestReceivedData = data;
         }
     }
-
     private void UiUpdateTimer_Tick(object? sender, EventArgs e)
     {
         try
@@ -1072,56 +1087,72 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         {
             IsInSnapshotMode = false;
             LoadedSnapshotFileName = "";
-
+    
             // 重置战斗状态
             _fightTimer.Stop();
-            _elapsedSeconds = 0;
-            FightDurationText = "0:00";
-            _isFightActive = false;
-            _lastCombatActivityTime = DateTime.MinValue;
-
-            // 清空列表
-            Players.Clear();
-            _playerCache.Clear();
-            OnPropertyChanged(nameof(PlayerCount));
-
-            var (success, isPaused) = await _apiService.GetPauseStateAsync();
-            if (success)
+    
+            // --- 修改部分 ---
+            if (IsPauseOnSnapshotEnabled)
             {
-                // 如果服务器当前是暂停的，则同步UI的暂停状态
-                if (isPaused)
+                // 行为与之前类似，执行完全重置
+                _elapsedSeconds = 0;
+                FightDurationText = "0:00";
+                _isFightActive = false;
+                _lastCombatActivityTime = DateTime.MinValue;
+    
+                Players.Clear();
+                _playerCache.Clear();
+    
+                var (success, isPaused) = await _apiService.GetPauseStateAsync();
+                if (success && isPaused)
                 {
                     IsPaused = true;
                     ShowNotification("已返回实时模式 (服务暂停中)");
                 }
                 else
                 {
-                    // 如果服务器未暂停，则执行与首次启动一致的逻辑
                     IsPaused = false;
                     var initialData = await _apiService.GetInitialDataAsync();
                     if (initialData != null) await ProcessData(initialData);
-
                     ShowNotification("已返回实时模式");
                 }
+    
+                _apiService.DataReceived += OnDataReceived;
+                _uiUpdateTimer.Start();
+                await _apiService.ConnectAsync();
             }
             else
             {
-                // 如果查询失败，默认恢复非暂停状态
-                IsPaused = false;
-                ShowNotification("已返回实时模式 (无法获取服务状态)");
+                // 如果服务未暂停，则使用缓存数据进行无缝切换
+                Players.Clear();
+                _playerCache.Clear();
+    
+                ApiResponse? dataToProcess;
+                lock (_dataLock)
+                {
+                    dataToProcess = _liveDataCacheWhileInSnapshot;
+                    _liveDataCacheWhileInSnapshot = null;
+                }
+    
+                if (dataToProcess != null)
+                {
+                    await ProcessData(dataToProcess);
+                }
+                else
+                {
+                    // 如果在快照期间没有收到任何数据，则主动获取一次
+                    var initialData = await _apiService.GetInitialDataAsync();
+                    if (initialData != null) await ProcessData(initialData);
+                }
+    
+                _uiUpdateTimer.Start();
+                ShowNotification("已返回实时模式");
             }
-
-            // [修改] 在UI被初始数据填充完毕后，再重新连接到实时数据流
-            _apiService.DataReceived += OnDataReceived;
-            _uiUpdateTimer.Start();
-            await _apiService.ConnectAsync();
-
-            // 确保最终玩家计数被更新
+    
             OnPropertyChanged(nameof(PlayerCount));
-
             return;
         }
-        
+
         //处理非快照模式下的重置逻辑
         _fightTimer.Stop();
         _elapsedSeconds = 0;
