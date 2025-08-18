@@ -126,6 +126,8 @@ public partial class PlayerViewModel(
 
     // 用于技能展开区域的可见性属性
     public Visibility ExpandedVisibility => IsExpanded ? Visibility.Visible : Visibility.Collapsed;
+    
+    public bool HasFewSkills => Skills.Count <= 3;
 
     /// <summary>
     ///     控制暴击伤害分析文本的可见性。
@@ -256,6 +258,12 @@ public partial class PlayerViewModel(
         // 在实时模式下，清除缓存以强制重新计算
         _cachedToolTipText = null;
         OnPropertyChanged(nameof(ToolTipText));
+    }
+    
+    public void NotifySkillsChanged()
+    {
+        OnPropertyChanged(nameof(Skills));
+        OnPropertyChanged(nameof(HasFewSkills));
     }
 
     /// <summary>

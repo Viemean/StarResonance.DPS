@@ -77,17 +77,20 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     private readonly DispatcherTimer _uiUpdateTimer;
     private readonly DispatcherTimer _searchDebounceTimer; // 防抖计时器
+
     public enum SearchMode
     {
         ById,
         ByName
     }
+
     // 为本地化的ComboBox创建数据结构
     public class SearchModeItem
     {
         public SearchMode Mode { get; init; }
         public string DisplayName { get; init; } = string.Empty;
     }
+
     [ObservableProperty] private string _backendUrl = "ws://localhost:8989";
 
     [ObservableProperty] private Brush _connectionStatusColor = Brushes.Orange;
@@ -176,7 +179,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     [ObservableProperty] private double _windowTop = 100;
     [ObservableProperty] private double _windowWidth = 700;
 
-public MainViewModel(ApiService apiService, LocalizationService localizationService)
+    public MainViewModel(ApiService apiService, LocalizationService localizationService)
     {
         _skillUpdateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _skillUpdateTimer.Tick += SkillUpdateTimer_Tick;
@@ -188,7 +191,7 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
 
         //初始化 Players 集合的默认视图
         PlayersView = CollectionViewSource.GetDefaultView(Players);
-        
+
         _onLocalizationPropertyChanged = (_, e) =>
         {
             OnPropertyChanged(string.IsNullOrEmpty(e.PropertyName) ? string.Empty : nameof(Localization));
@@ -219,7 +222,7 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
         _stateSaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _stateSaveTimer.Tick += (_, _) => SaveState();
         _stateSaveTimer.Start();
-        
+
         // 初始化防抖计时器 (使用弃元 '_' 消除警告)
         _searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
         _searchDebounceTimer.Tick += (_, _) =>
@@ -238,23 +241,29 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
 
         ConnectionStatusText = Localization["Connecting"] ?? "正在连接...";
         PauseButtonText = Localization["Pause"] ?? "暂停";
-    }    
+    }
+
     public ObservableCollection<SearchModeItem> LocalizedSearchModes { get; } = new();
+
     public string SearchPlaceholderText => SelectedSearchModeItem?.Mode switch
     {
         SearchMode.ById => Localization["Placeholder_ById"] ?? "...", // 移除了多余的 '?'
         SearchMode.ByName => Localization["Placeholder_ByName"] ?? "...", // 移除了多余的 '?'
         _ => "搜索..."
     };
+
     private void UpdateLocalizedSearchModes()
-    { 
+    {
         var currentMode = SelectedSearchModeItem?.Mode ?? SearchMode.ByName;
         LocalizedSearchModes.Clear();
-        LocalizedSearchModes.Add(new SearchModeItem { Mode = SearchMode.ByName, DisplayName = Localization["SearchMode_ByName"] ?? "Name"});
-        LocalizedSearchModes.Add(new SearchModeItem { Mode = SearchMode.ById, DisplayName = Localization["SearchMode_ById"] ?? "ID"});
-        
+        LocalizedSearchModes.Add(new SearchModeItem
+            { Mode = SearchMode.ByName, DisplayName = Localization["SearchMode_ByName"] ?? "Name" });
+        LocalizedSearchModes.Add(new SearchModeItem
+            { Mode = SearchMode.ById, DisplayName = Localization["SearchMode_ById"] ?? "ID" });
+
         SelectedSearchModeItem = LocalizedSearchModes.FirstOrDefault(i => i.Mode == currentMode);
     }
+
     public void ShowNotification(string message)
     {
         NotificationText = message;
@@ -262,7 +271,7 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
         _notificationTimer.Stop();
         _notificationTimer.Start();
     }
-    
+
     partial void OnSearchFilterTextChanged(string value)
     {
         _ = value;
@@ -270,14 +279,14 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
         _searchDebounceTimer.Stop();
         _searchDebounceTimer.Start();
     }
-    
+
     partial void OnSelectedSearchModeItemChanged(SearchModeItem? value)
     {
-        _ = value; 
+        _ = value;
         ApplyFilter();
     }
 
-    private void ApplyFilter() 
+    private void ApplyFilter()
     {
         if (SelectedSearchModeItem is null) return;
 
@@ -289,17 +298,18 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
             {
                 player.IsMatchInFilter = true;
             }
+
             return;
         }
 
         foreach (var player in Players)
         {
-            
             player.IsMatchInFilter = SelectedSearchModeItem.Mode == SearchMode.ByName
                 ? player.DisplayName.Contains(filterText, StringComparison.OrdinalIgnoreCase)
                 : player.Uid.ToString().StartsWith(filterText);
         }
-    }    //用于替换 IValueConverter 的计算属性
+    } //用于替换 IValueConverter 的计算属性
+
     public Visibility SnapshotModeVisibility => IsInSnapshotMode ? Visibility.Visible : Visibility.Collapsed;
     public Visibility RealtimeModeVisibility => IsInSnapshotMode ? Visibility.Collapsed : Visibility.Visible;
     public Visibility CountdownRunningVisibility => IsCountdownRunning ? Visibility.Visible : Visibility.Collapsed;
@@ -338,7 +348,7 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
         await _apiService.DisposeAsync();
         GC.SuppressFinalize(this);
     }
-    
+
 
     partial void OnIsSmartIdleModeEnabledChanged(bool value)
     {
@@ -347,7 +357,7 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
         ApplySorting();
 
         // 立即刷新整个列表的显示，包括排序、排名和百分比
-        UpdatePlayerList();
+        RefreshAndSortPlayerList();
     }
 
     partial void OnPlayersChanged(ObservableCollection<PlayerViewModel> value)
@@ -667,7 +677,7 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
             _skillUpdateTimer.Stop();
 
             _isSortingPaused = false;
-            UpdatePlayerList();
+            RefreshAndSortPlayerList();
             return;
         }
 
@@ -704,11 +714,12 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
                 foreach (var skillVm in skills) player.Skills.Add(skillVm);
+                player.NotifySkillsChanged();
             });
 
             return; // 快照模式处理完毕，直接返回
         }
-        
+
         try
         {
             player.IsFetchingSkillData = true;
@@ -716,27 +727,33 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
             await Application.Current.Dispatcher.InvokeAsync(() => player.SetLoadingSkills(true));
 
             var skillDataResponse = await _apiService.GetSkillDataAsync(player.Uid);
-            if (skillDataResponse?.Data != null)
+
+            // 只有当新获取的数据有效且包含技能时，才更新缓存的RawSkillData
+            // 这可以防止闲置玩家的空数据覆盖掉最后一次的有效数据
+            if (skillDataResponse?.Data?.Skills.Count > 0)
             {
                 player.RawSkillData = skillDataResponse.Data;
                 player.NotifyTooltipUpdate();
+            }
 
+            // 无论如何，都尝试使用当前持有的RawSkillData来更新UI
+            if (player.RawSkillData?.Skills != null)
+            {
+                var playerTotalValue = player.TotalDamage + player.TotalHealing;
+                var skills = player.RawSkillData.Skills.Values
+                    .OrderByDescending(s => s.TotalDamage)
+                    .Take(6)
+                    .Select(s => new SkillViewModel(s, playerTotalValue));
+
+                await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
-                    var playerTotalValue = player.TotalDamage + player.TotalHealing;
-                    var skills = skillDataResponse.Data.Skills.Values
-                        .OrderByDescending(s => s.TotalDamage)
-                        .Take(6)
-                        .Select(s => new SkillViewModel(s, playerTotalValue));
+                    player.Skills.Clear();
+                    foreach (var skillVm in skills) player.Skills.Add(skillVm);
+                    player.NotifySkillsChanged();
+                });
 
-                    await Application.Current.Dispatcher.InvokeAsync(() =>
-                    {
-                        player.Skills.Clear();
-                        foreach (var skillVm in skills) player.Skills.Add(skillVm);
-                    });
-
-                    player.CalculateAccurateCritDamage(skillDataResponse.Data.Skills);
-                    player.CalculateAccurateCritHealing(skillDataResponse.Data.Skills);
-                }
+                player.CalculateAccurateCritDamage(player.RawSkillData.Skills);
+                player.CalculateAccurateCritHealing(player.RawSkillData.Skills);
             }
         }
         catch (Exception ex)
@@ -834,18 +851,27 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
                 timeSpan.TotalHours >= 1 ? timeSpan.ToString(@"h\:mm\:ss") : timeSpan.ToString(@"m\:ss");
             _isFightActive = true;
 
-            Players.Clear();
-            _playerCache.Clear();
+            // --- 性能优化点 ---
+            // 1. 在内存中构建列表，避免多次触发UI更新
+            var newPlayerList = new List<PlayerViewModel>(snapshot.Players.Count);
+            var newPlayerCache = new Dictionary<string, PlayerViewModel>(snapshot.Players.Count);
 
             foreach (var playerSnapshot in snapshot.Players)
             {
                 var playerVm = new PlayerViewModel(playerSnapshot, FightDurationText, Localization, this);
                 var key = playerVm.Uid.ToString();
-                _playerCache.Add(key, playerVm);
-                Players.Add(playerVm);
+                newPlayerCache.Add(key, playerVm);
+                newPlayerList.Add(playerVm);
             }
 
-            UpdatePlayerList();
+            // 2. 一次性替换集合和缓存，触发单次UI更新
+            _playerCache.Clear();
+            foreach (var entry in newPlayerCache) _playerCache.Add(entry.Key, entry.Value);
+
+            Players = new ObservableCollection<PlayerViewModel>(newPlayerList);
+
+            // 3. 调用优化后的排序和刷新方法
+            RefreshAndSortPlayerList();
 
             // 手动通知UI更新PlayerCount属性
             OnPropertyChanged(nameof(PlayerCount));
@@ -917,7 +943,7 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
                 }
 
                 // 如果有玩家“唤醒”或列表结构发生变化，才立即刷新列表
-                if (changes.ListNeedsRefresh) UpdatePlayerList();
+                if (changes.ListNeedsRefresh) RefreshAndSortPlayerList();
             }
 
             // 无论有无新数据，都执行一次闲置状态检查
@@ -1008,7 +1034,7 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
                 Players = new ObservableCollection<PlayerViewModel>(newPlayerList);
 
                 ApplySorting();
-                UpdatePlayerList();
+                RefreshAndSortPlayerList();
                 OnPropertyChanged(nameof(PlayerCount));
             });
         }
@@ -1089,27 +1115,36 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
     }
 
     /// <summary>
-    ///     根据当前排序设置，对玩家列表进行排序、计算百分比并更新UI。
-    ///     同时处理闲置玩家的逻辑。
+    ///     对当前玩家列表进行排序、计算百分比并高效地更新UI，取代旧的UpdatePlayerList方法。
     /// </summary>
-    private void UpdatePlayerList()
+    private void RefreshAndSortPlayerList()
     {
         if (_isSortingPaused) return;
 
-        var playersForCalcs = IsSmartIdleModeEnabled ? Players.Where(p => !p.IsIdle).ToList() : Players.ToList();
+        // 复制到List<T>以便在内存中高效排序
+        var sortedPlayers = Players.ToList();
 
-        if (playersForCalcs.Count == 0)
+        // 根据当前设置在内存中排序
+        // 主排序规则
+        if (!string.IsNullOrEmpty(SortColumn))
         {
-            foreach (var p in Players)
+            var property = typeof(PlayerViewModel).GetProperty(SortColumn);
+            if (property != null)
             {
-                p.DamagePercent = 0;
-                p.HealingPercent = 0;
-                p.UpdateDisplayPercentages(0, 0, 0, 0, 0, null);
+                sortedPlayers = SortDirection == ListSortDirection.Ascending
+                    ? sortedPlayers.OrderBy(p => property.GetValue(p)).ToList()
+                    : sortedPlayers.OrderByDescending(p => property.GetValue(p)).ToList();
             }
-
-            UpdateColumnTotals();
-            return;
         }
+
+        // 优先排序规则（闲置模式）
+        if (IsSmartIdleModeEnabled)
+        {
+            sortedPlayers = sortedPlayers.OrderBy(p => p.IsIdle).ToList();
+        }
+
+        // 3. 计算百分比和排名
+        var playersForCalcs = IsSmartIdleModeEnabled ? sortedPlayers.Where(p => !p.IsIdle).ToList() : sortedPlayers;
 
         var totalDamage = playersForCalcs.Sum(p => p.TotalDamage);
         var totalHealing = playersForCalcs.Sum(p => p.TotalHealing);
@@ -1117,17 +1152,19 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
         var totalHps = playersForCalcs.Sum(p => p.TotalHps);
         var totalTakenDamage = playersForCalcs.Sum(p => p.TakenDamage);
 
-        foreach (var player in Players)
+        var rank = 1;
+        foreach (var player in sortedPlayers)
         {
+            player.Rank = IsSmartIdleModeEnabled && player.IsIdle ? 0 : rank++;
+
             if (IsSmartIdleModeEnabled && player.IsIdle)
             {
                 player.DamagePercent = 0;
                 player.HealingPercent = 0;
-                player.UpdateDisplayPercentages(0, 0, 0, 0, 0, SortColumn);
+                player.UpdateDisplayPercentages(0, 0, 0, 0, 0, null);
                 continue;
             }
 
-            // --- 修改部分：为所有玩家计算并存储原始百分比 ---
             player.DamagePercent = totalDamage > 0 ? player.TotalDamage / totalDamage : 0;
             player.HealingPercent = totalHealing > 0 ? player.TotalHealing / totalHealing : 0;
 
@@ -1139,13 +1176,8 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
                 takenDamagePct, SortColumn);
         }
 
-        Application.Current.Dispatcher.Invoke(() =>
-        {
-            PlayersView.Refresh();
-            var rank = 1;
-            // 关键修复：遍历排序后的 PlayersView 而不是未排序的 Players 集合
-            foreach (PlayerViewModel p in PlayersView) p.Rank = IsSmartIdleModeEnabled && p.IsIdle ? 0 : rank++;
-        });
+        // 4. 一次性更新UI
+        Players = new ObservableCollection<PlayerViewModel>(sortedPlayers);
 
         UpdateColumnTotals();
     }
@@ -1166,7 +1198,7 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
         }
 
         ApplySorting();
-        UpdatePlayerList();
+        RefreshAndSortPlayerList();
     }
 
     [RelayCommand]
@@ -1432,7 +1464,7 @@ public MainViewModel(ApiService apiService, LocalizationService localizationServ
         }
 
         // 如果有玩家的状态变为了闲置，则调用 UpdatePlayerList 来刷新UI
-        if (needsRefresh) UpdatePlayerList();
+        if (needsRefresh) RefreshAndSortPlayerList();
     }
 
     public static class SortableColumns

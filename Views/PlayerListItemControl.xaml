@@ -151,30 +151,20 @@
                         <WrapPanel.Style>
                             <Style TargetType="WrapPanel">
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Skills.Count}" Value="0">
-                                        <Setter Property="Margin" Value="5,-20,0,0" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding Skills.Count}" Value="1">
-                                        <Setter Property="Margin" Value="5,-20,0,0" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding Skills.Count}" Value="2">
-                                        <Setter Property="Margin" Value="5,-20,0,0" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding Skills.Count}" Value="3">
+                                    <DataTrigger Binding="{Binding HasFewSkills}" Value="True">
                                         <Setter Property="Margin" Value="5,-20,0,0" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
                         </WrapPanel.Style>
-                        <TextBlock Foreground="Orange" FontWeight="Bold" Margin="0,0,20,0"
-                                   Visibility="{Binding CritDamageVisibility}">
+
+                        <TextBlock Foreground="Orange" FontWeight="Bold" Margin="0,0,20,0">
                             <Run
                                 Text="{Binding DataContext.Localization[AccurateCritDamageLabel], ElementName=RootWindow, Mode=OneWay}" />
                             <Run Text="{Binding AccurateCritDamageText}" />
                         </TextBlock>
 
-                        <TextBlock Foreground="LawnGreen" FontWeight="Bold"
-                                   Visibility="{Binding CritHealingVisibility}">
+                        <TextBlock Foreground="LawnGreen" FontWeight="Bold">
                             <Run
                                 Text="{Binding DataContext.Localization[AccurateCritHealingLabel], ElementName=RootWindow, Mode=OneWay}" />
                             <Run Text="{Binding AccurateCritHealingText}" />
