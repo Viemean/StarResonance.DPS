@@ -195,10 +195,15 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         _onLocalizationPropertyChanged = (_, e) =>
         {
             OnPropertyChanged(string.IsNullOrEmpty(e.PropertyName) ? string.Empty : nameof(Localization));
-            // 当语言文化改变时，更新搜索模式的显示文本
-            if (e.PropertyName == nameof(LocalizationService.CurrentCulture) || string.IsNullOrEmpty(e.PropertyName))
+            // 当语言文化改变时，更新依赖本地化的UI元素
+            if (e.PropertyName != nameof(LocalizationService.CurrentCulture) &&
+                !string.IsNullOrEmpty(e.PropertyName)) return;
+            UpdateLocalizedSearchModes();
+
+            // 遍历当前所有玩家ViewModel，使其缓存的本地化字符串失效并触发UI更新。
+            foreach (var player in Players)
             {
-                UpdateLocalizedSearchModes();
+                player.InvalidateLocalizedStrings();
             }
         };
 

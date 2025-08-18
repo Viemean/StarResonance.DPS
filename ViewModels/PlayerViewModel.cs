@@ -426,4 +426,14 @@ public partial class PlayerViewModel(
         OnPropertyChanged(nameof(TotalHpsTooltip));
         OnPropertyChanged(nameof(TakenDamageTooltip));
     }
+    /// <summary>
+    /// 当语言变更时，使缓存的字符串（如Tooltip和复制文本）失效，以便下次访问时重新生成。
+    /// </summary>
+    public void InvalidateLocalizedStrings()
+    {
+        _cachedToolTipText = null;
+        _cachedCopyableString = null;
+        OnPropertyChanged(nameof(ToolTipText));
+        OnPropertyChanged(nameof(CopyableString));
+    }
 }
