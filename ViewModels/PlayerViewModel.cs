@@ -55,7 +55,7 @@ public partial class PlayerViewModel(
     [ObservableProperty] private double _totalHealing;
     [ObservableProperty] private double _totalHps;
     
-    // --- 百分比属性 ---
+    // --- 新增属性 ---
     public double DamagePercent { get; set; }
     public double HealingPercent { get; set; }
 
@@ -217,6 +217,7 @@ public partial class PlayerViewModel(
         var luckyRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Lucky / _data.TotalCount.Total : 0;
 
         var rankLabel = localizationService["Rank"] ?? "#";
+        var idLabel = (localizationService["Tooltip_PlayerId"] ?? "角色ID: ").TrimEnd(':', ' '); // 复用Tooltip的翻译
         var nameLabel = localizationService["CharacterName"] ?? "Name";
         var scoreLabel = localizationService["Score"] ?? "Score";
         var professionLabel = localizationService["Profession"] ?? "Profession";
@@ -235,6 +236,7 @@ public partial class PlayerViewModel(
 
 
         return $"{rankLabel}: {Rank}, " +
+               $"{idLabel}: {Uid}, " + // --- 新增字段 ---
                $"{nameLabel}: {DisplayName}, " +
                $"{scoreLabel}: {FightPoint}, " +
                $"{professionLabel}: {Profession}, " +
