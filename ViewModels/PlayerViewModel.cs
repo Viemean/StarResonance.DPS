@@ -20,6 +20,10 @@ public partial class PlayerViewModel(
     LocalizationService localizationService,
     INotificationService notificationService) : ObservableObject
 {
+    // 新增缓存字段
+    private string? _cachedCopyableString;
+    private string? _cachedToolTipText;
+
     [ObservableProperty] private string? _accurateCritDamageText;
     [ObservableProperty] private string? _accurateCritHealingText;
     [ObservableProperty] private string? _damageDisplayPercentage;
@@ -59,24 +63,26 @@ public partial class PlayerViewModel(
     /// <param name="localizationService">本地化服务实例。</param>
     /// <param name="notificationService">通知服务实例。</param>
     public PlayerViewModel(PlayerSnapshot snapshot, string fightDuration, LocalizationService localizationService,
-            INotificationService notificationService)
+        INotificationService notificationService)
         // 修正：从 SkillData 中安全地获取 Uid，如果不存在则默认为0
         : this(snapshot.SkillData?.Uid ?? 0, localizationService, notificationService)
     {
         Update(snapshot.UserData, 0, fightDuration);
         RawSkillData = snapshot.SkillData;
-        //直接访问 RawSkillData.Skills
         if (RawSkillData?.Skills == null) return;
         var playerTotalValue = TotalDamage + TotalHealing;
-        //直接访问 RawSkillData.Skills
         var skills = RawSkillData.Skills.Values
             .OrderByDescending(s => s.TotalDamage)
             .Take(6)
             .Select(s => new SkillViewModel(s, playerTotalValue));
         foreach (var skillVm in skills) Skills.Add(skillVm);
-        // 直接访问 RawSkillData.Skills
         CalculateAccurateCritDamage(RawSkillData.Skills);
         CalculateAccurateCritHealing(RawSkillData.Skills);
+        
+        //在快照模式下预先计算并缓存 ---
+        _cachedToolTipText = BuildToolTipText();
+        _cachedCopyableString = BuildCopyableString();
+        if (NameColor.CanFreeze) NameColor.Freeze();
     }
 
     /// <summary>
@@ -135,45 +141,44 @@ public partial class PlayerViewModel(
     public string TotalDpsTooltip => TotalDps.ToString("N2");
     public string TotalHpsTooltip => TotalHps.ToString("N2");
     public string TakenDamageTooltip => TakenDamage.ToString("N0");
-
-    public string ToolTipText
+    
+    public string ToolTipText => _cachedToolTipText ?? BuildToolTipText();
+    
+    private string BuildToolTipText()
     {
-        get
-        {
-            if (_data == null) return string.Empty;
+        if (_data == null) return string.Empty;
 
-            var sb = new StringBuilder();
-            var unknownText = localizationService["Unknown"] ?? "未知";
+        var sb = new StringBuilder();
+        var unknownText = localizationService["Unknown"] ?? "未知";
 
-            // 基础信息
-            sb.AppendLine($"{localizationService["Tooltip_PlayerId"] ?? "角色ID: "}{Uid}");
-            sb.AppendLine($"{localizationService["Tooltip_PlayerName"] ?? "角色昵称: "}{Name}");
+        // 基础信息
+        sb.AppendLine($"{localizationService["Tooltip_PlayerId"] ?? "角色ID: "}{Uid}");
+        sb.AppendLine($"{localizationService["Tooltip_PlayerName"] ?? "角色昵称: "}{Name}");
 
-            //静态显示角色等级、臂章等级和最大生命值
-            var attr = RawSkillData?.Attr;
+        //显示角色等级、臂章等级和最大生命值
+        var attr = RawSkillData?.Attr;
 
-            var levelText = attr is { Level: > 0 } ? attr.Level.ToString() : unknownText;
-            sb.AppendLine($"{(localizationService["Tooltip_CharacterLevel"] ?? "角色等级:").TrimEnd(':')} {levelText}");
+        var levelText = attr is { Level: > 0 } ? attr.Level.ToString() : unknownText;
+        sb.AppendLine($"{(localizationService["Tooltip_CharacterLevel"] ?? "角色等级:").TrimEnd(':')} {levelText}");
 
-            var rankLevelText = attr is { RankLevel: > 0 } ? attr.RankLevel.ToString() : unknownText;
-            sb.AppendLine($"{(localizationService["Tooltip_RankLevel"] ?? "臂章等级:").TrimEnd(':')} {rankLevelText}");
+        var rankLevelText = attr is { RankLevel: > 0 } ? attr.RankLevel.ToString() : unknownText;
+        sb.AppendLine($"{(localizationService["Tooltip_RankLevel"] ?? "臂章等级:").TrimEnd(':')} {rankLevelText}");
 
-            var maxHpText = attr is { MaxHp: > 0 } ? attr.MaxHp.ToString("N0") : unknownText;
-            sb.AppendLine($"{(localizationService["Tooltip_MaxHP"] ?? "最大生命值:").TrimEnd(':')} {maxHpText}");
+        var maxHpText = attr is { MaxHp: > 0 } ? attr.MaxHp.ToString("N0") : unknownText;
+        sb.AppendLine($"{(localizationService["Tooltip_MaxHP"] ?? "最大生命值:").TrimEnd(':')} {maxHpText}");
 
-            // 评分和职业
-            sb.AppendLine($"{localizationService["Tooltip_Score"] ?? "评分: "}{FightPoint}");
-            sb.AppendLine($"{localizationService["Tooltip_Profession"] ?? "职业: "}{Profession}");
+        // 评分和职业
+        sb.AppendLine($"{localizationService["Tooltip_Score"] ?? "评分: "}{FightPoint}");
+        sb.AppendLine($"{localizationService["Tooltip_Profession"] ?? "职业: "}{Profession}");
 
-            // 暴击率和幸运率
-            var critRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Critical / _data.TotalCount.Total : 0;
-            sb.AppendLine($"{localizationService["Tooltip_CritRate"] ?? "暴击率: "}{critRate:P1}");
+        // 暴击率和幸运率
+        var critRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Critical / _data.TotalCount.Total : 0;
+        sb.AppendLine($"{localizationService["Tooltip_CritRate"] ?? "暴击率: "}{critRate:P1}");
 
-            var luckyRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Lucky / _data.TotalCount.Total : 0;
-            sb.AppendLine($"{localizationService["Tooltip_LuckyRate"] ?? "幸运率: "}{luckyRate:P1}");
+        var luckyRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Lucky / _data.TotalCount.Total : 0;
+        sb.AppendLine($"{localizationService["Tooltip_LuckyRate"] ?? "幸运率: "}{luckyRate:P1}");
 
-            return sb.ToString().TrimEnd();
-        }
+        return sb.ToString().TrimEnd();
     }
 
     public string DisplayProfession
@@ -186,44 +191,45 @@ public partial class PlayerViewModel(
         }
     }
 
-    public string CopyableString
+    public string CopyableString => _cachedCopyableString ?? BuildCopyableString();
+
+    private string BuildCopyableString()
     {
-        get
-        {
-            if (_data == null) return string.Empty;
-            var critRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Critical / _data.TotalCount.Total : 0;
-            var luckyRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Lucky / _data.TotalCount.Total : 0;
+        if (_data == null) return string.Empty;
+        var critRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Critical / _data.TotalCount.Total : 0;
+        var luckyRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Lucky / _data.TotalCount.Total : 0;
 
-            var rankLabel = localizationService["Rank"] ?? "#";
-            var nameLabel = localizationService["CharacterName"] ?? "Name";
-            var scoreLabel = localizationService["Score"] ?? "Score";
-            var professionLabel = localizationService["Profession"] ?? "Profession";
-            var totalDamageLabel = localizationService["TotalDamage"] ?? "Damage";
-            var totalHealingLabel = localizationService["TotalHealing"] ?? "Healing";
-            var dpsLabel = localizationService["TotalDPS"] ?? "DPS";
-            var hpsLabel = localizationService["TotalHPS"] ?? "HPS";
-            var takenDamageLabel = localizationService["TakenDamage"] ?? "DmgTaken";
-            var critRateLabel = (localizationService["Tooltip_CritRate"] ?? "Crit Rate: ").TrimEnd(':', ' ');
-            var luckyRateLabel = (localizationService["Tooltip_LuckyRate"] ?? "Lucky Rate: ").TrimEnd(':', ' ');
-            var durationLabel = localizationService["FightDuration"] ?? "Duration";
+        var rankLabel = localizationService["Rank"] ?? "#";
+        var nameLabel = localizationService["CharacterName"] ?? "Name";
+        var scoreLabel = localizationService["Score"] ?? "Score";
+        var professionLabel = localizationService["Profession"] ?? "Profession";
+        var totalDamageLabel = localizationService["TotalDamage"] ?? "Damage";
+        var totalHealingLabel = localizationService["TotalHealing"] ?? "Healing";
+        var dpsLabel = localizationService["TotalDPS"] ?? "DPS";
+        var hpsLabel = localizationService["TotalHPS"] ?? "HPS";
+        var takenDamageLabel = localizationService["TakenDamage"] ?? "DmgTaken";
+        var critRateLabel = (localizationService["Tooltip_CritRate"] ?? "Crit Rate: ").TrimEnd(':', ' ');
+        var luckyRateLabel = (localizationService["Tooltip_LuckyRate"] ?? "Lucky Rate: ").TrimEnd(':', ' ');
+        var durationLabel = localizationService["FightDuration"] ?? "Duration";
 
-            return $"{rankLabel}: {Rank}, " +
-                   $"{nameLabel}: {DisplayName}, " +
-                   $"{scoreLabel}: {FightPoint}, " +
-                   $"{professionLabel}: {Profession}, " +
-                   $"{totalDamageLabel}: {TotalDamage:F0}, " +
-                   $"{totalHealingLabel}: {TotalHealing:F0}, " +
-                   $"{dpsLabel}: {TotalDps:F2}, " +
-                   $"{hpsLabel}: {TotalHps:F2}, " +
-                   $"{takenDamageLabel}: {TakenDamage:F0}, " +
-                   $"{critRateLabel}: {critRate:P1}, " +
-                   $"{luckyRateLabel}: {luckyRate:P1}, " +
-                   $"{durationLabel}: {_fightDuration}";
-        }
+        return $"{rankLabel}: {Rank}, " +
+               $"{nameLabel}: {DisplayName}, " +
+               $"{scoreLabel}: {FightPoint}, " +
+               $"{professionLabel}: {Profession}, " +
+               $"{totalDamageLabel}: {TotalDamage:F0}, " +
+               $"{totalHealingLabel}: {TotalHealing:F0}, " +
+               $"{dpsLabel}: {TotalDps:F2}, " +
+               $"{hpsLabel}: {TotalHps:F2}, " +
+               $"{takenDamageLabel}: {TakenDamage:F0}, " +
+               $"{critRateLabel}: {critRate:P1}, " +
+               $"{luckyRateLabel}: {luckyRate:P1}, " +
+               $"{durationLabel}: {_fightDuration}";
     }
-
+    
     public void NotifyTooltipUpdate()
     {
+        // 在实时模式下，清除缓存以强制重新计算
+        _cachedToolTipText = null;
         OnPropertyChanged(nameof(ToolTipText));
     }
 
@@ -328,7 +334,12 @@ public partial class PlayerViewModel(
             oldProfession != Profession ||
             oldFightPoint != FightPoint ||
             oldTotalCount != data.TotalCount)
+        {
+            // 在实时模式下，清除缓存以强制重新计算
+             _cachedToolTipText = null;
+            _cachedCopyableString = null;
             OnPropertyChanged(nameof(ToolTipText));
+        }
 
         OnComputedPropertiesChanged();
     }
