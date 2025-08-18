@@ -173,9 +173,13 @@
 
                 <Border Grid.Row="0" Background="#333" CornerRadius="8,8,0,0" Padding="5"
                         MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                    <DockPanel>
-                        <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center"
-                                    Margin="5,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" /> <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="5,0">
                             <Button Content="💾" ToolTip="创建快照"
                                     Command="{Binding SaveSnapshotCommand}" Padding="8,2"
                                     Style="{StaticResource TransparentButtonStyle}" />
@@ -185,16 +189,8 @@
                             <TextBlock Text="{Binding CurrentTime}" Foreground="Cyan" FontWeight="Bold"
                                        VerticalAlignment="Center" Margin="8,0,0,0" />
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Right">
-                            <Button Content="—" ToolTip="{Binding Localization[Minimize]}" FontWeight="Bold"
-                                    Click="MinimizeButton_Click" Style="{StaticResource TransparentButtonStyle}" />
-                            <Button Content="{Binding LockIconContent}"
-                                    ToolTip="{Binding Localization[LockUnlockWindow]}" Click="LockButton_Click"
-                                    Style="{StaticResource TransparentButtonStyle}" />
-                            <Button Content="⚙" ToolTip="{Binding Localization[Settings]}" Click="SettingsButton_Click"
-                                    Style="{StaticResource TransparentButtonStyle}" />
-                        </StackPanel>
-                        <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+
+                        <Grid Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Visibility="{Binding RealtimeModeVisibility}">
                                 <Ellipse Width="10" Height="10" Fill="{Binding PauseStatusColor}" Margin="5,0,5,0"
                                          VerticalAlignment="Center" />
@@ -216,8 +212,7 @@
                                     <TextBlock Text="{Binding CountdownText}" Foreground="Orange" FontWeight="Bold"
                                                HorizontalAlignment="Center"
                                                Visibility="{Binding IsCountdownRunning, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                    <Grid
-                                        Visibility="{Binding RealtimeModeVisibility}">
+                                    <Grid Visibility="{Binding RealtimeModeVisibility}">
                                         <TextBlock Text="{Binding Localization[Pause]}" Foreground="Red"
                                                    FontWeight="Bold"
                                                    HorizontalAlignment="Center"
@@ -246,7 +241,17 @@
                                         Style="{StaticResource TransparentButtonStyle}" />
                             </StackPanel>
                         </Grid>
-                    </DockPanel>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Content="—" ToolTip="{Binding Localization[Minimize]}" FontWeight="Bold"
+                                    Click="MinimizeButton_Click" Style="{StaticResource TransparentButtonStyle}" />
+                            <Button Content="{Binding LockIconContent}"
+                                    ToolTip="{Binding Localization[LockUnlockWindow]}" Click="LockButton_Click"
+                                    Style="{StaticResource TransparentButtonStyle}" />
+                            <Button Content="⚙" ToolTip="{Binding Localization[Settings]}" Click="SettingsButton_Click"
+                                    Style="{StaticResource TransparentButtonStyle}" />
+                        </StackPanel>
+                    </Grid>
                 </Border>
 
                 <Grid Grid.Row="1">
