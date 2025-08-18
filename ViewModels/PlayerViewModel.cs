@@ -54,6 +54,11 @@ public partial class PlayerViewModel(
     [ObservableProperty] private double _totalDps;
     [ObservableProperty] private double _totalHealing;
     [ObservableProperty] private double _totalHps;
+    
+    // --- 百分比属性 ---
+    public double DamagePercent { get; set; }
+    public double HealingPercent { get; set; }
+
 
     /// <summary>
     ///     用于从快照数据创建玩家视图模型的构造函数。
@@ -69,17 +74,25 @@ public partial class PlayerViewModel(
     {
         Update(snapshot.UserData, 0, fightDuration);
         RawSkillData = snapshot.SkillData;
+        
+        // 从快照中恢复百分比数据
+        DamagePercent = snapshot.DamagePercent;
+        HealingPercent = snapshot.HealingPercent;
+        
+        //直接访问 RawSkillData.Skills
         if (RawSkillData?.Skills == null) return;
         var playerTotalValue = TotalDamage + TotalHealing;
+        //直接访问 RawSkillData.Skills
         var skills = RawSkillData.Skills.Values
             .OrderByDescending(s => s.TotalDamage)
             .Take(6)
             .Select(s => new SkillViewModel(s, playerTotalValue));
         foreach (var skillVm in skills) Skills.Add(skillVm);
+        // 直接访问 RawSkillData.Skills
         CalculateAccurateCritDamage(RawSkillData.Skills);
         CalculateAccurateCritHealing(RawSkillData.Skills);
         
-        //在快照模式下预先计算并缓存 ---
+        // --- 新增优化：在快照模式下预先计算并缓存 ---
         _cachedToolTipText = BuildToolTipText();
         _cachedCopyableString = BuildCopyableString();
         if (NameColor.CanFreeze) NameColor.Freeze();
@@ -141,9 +154,11 @@ public partial class PlayerViewModel(
     public string TotalDpsTooltip => TotalDps.ToString("N2");
     public string TotalHpsTooltip => TotalHps.ToString("N2");
     public string TakenDamageTooltip => TakenDamage.ToString("N0");
-    
+
+    // 修改 ToolTipText get访问器
     public string ToolTipText => _cachedToolTipText ?? BuildToolTipText();
     
+    // 新增：构建ToolTipText的私有方法
     private string BuildToolTipText()
     {
         if (_data == null) return string.Empty;
@@ -155,7 +170,7 @@ public partial class PlayerViewModel(
         sb.AppendLine($"{localizationService["Tooltip_PlayerId"] ?? "角色ID: "}{Uid}");
         sb.AppendLine($"{localizationService["Tooltip_PlayerName"] ?? "角色昵称: "}{Name}");
 
-        //显示角色等级、臂章等级和最大生命值
+        //静态显示角色等级、臂章等级和最大生命值
         var attr = RawSkillData?.Attr;
 
         var levelText = attr is { Level: > 0 } ? attr.Level.ToString() : unknownText;
@@ -191,8 +206,10 @@ public partial class PlayerViewModel(
         }
     }
 
+    // 修改 CopyableString get访问器
     public string CopyableString => _cachedCopyableString ?? BuildCopyableString();
 
+    // 新增：构建CopyableString的私有方法
     private string BuildCopyableString()
     {
         if (_data == null) return string.Empty;
@@ -211,13 +228,18 @@ public partial class PlayerViewModel(
         var critRateLabel = (localizationService["Tooltip_CritRate"] ?? "Crit Rate: ").TrimEnd(':', ' ');
         var luckyRateLabel = (localizationService["Tooltip_LuckyRate"] ?? "Lucky Rate: ").TrimEnd(':', ' ');
         var durationLabel = localizationService["FightDuration"] ?? "Duration";
+        
+        // --- 修改部分：在伤害和治疗后添加百分比 ---
+        var damageString = TotalDamage > 0 ? $"{TotalDamage:F0} ({DamagePercent:P1})" : $"{TotalDamage:F0}";
+        var healingString = TotalHealing > 0 ? $"{TotalHealing:F0} ({HealingPercent:P1})" : $"{TotalHealing:F0}";
+
 
         return $"{rankLabel}: {Rank}, " +
                $"{nameLabel}: {DisplayName}, " +
                $"{scoreLabel}: {FightPoint}, " +
                $"{professionLabel}: {Profession}, " +
-               $"{totalDamageLabel}: {TotalDamage:F0}, " +
-               $"{totalHealingLabel}: {TotalHealing:F0}, " +
+               $"{totalDamageLabel}: {damageString}, " +
+               $"{totalHealingLabel}: {healingString}, " +
                $"{dpsLabel}: {TotalDps:F2}, " +
                $"{hpsLabel}: {TotalHps:F2}, " +
                $"{takenDamageLabel}: {TakenDamage:F0}, " +

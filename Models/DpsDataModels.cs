@@ -237,8 +237,11 @@ public record SkillApiResponse
 public record PlayerSnapshot
 {
     [JsonInclude] public UserData UserData { get; init; } = new();
-
     [JsonInclude] public SkillApiResponseData? SkillData { get; init; }
+    
+    // --- 百分比属性 ---
+    [JsonInclude] public double DamagePercent { get; init; }
+    [JsonInclude] public double HealingPercent { get; init; }
 }
 
 public record SnapshotData

@@ -695,7 +695,10 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             Players = _playerCache.Values.Select(p => new PlayerSnapshot
             {
                 UserData = p.UserData!,
-                SkillData = p.RawSkillData
+                SkillData = p.RawSkillData,
+                // --- 修改部分：保存百分比 ---
+                DamagePercent = p.DamagePercent,
+                HealingPercent = p.HealingPercent
             }).ToList()
         };
 
@@ -1018,7 +1021,12 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
         if (playersForCalcs.Count == 0)
         {
-            foreach (var p in Players) p.UpdateDisplayPercentages(0, 0, 0, 0, 0, null);
+            foreach (var p in Players)
+            {
+                p.DamagePercent = 0;
+                p.HealingPercent = 0;
+                p.UpdateDisplayPercentages(0, 0, 0, 0, 0, null);
+            }
 
             UpdateColumnTotals();
             return;
@@ -1034,17 +1042,21 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         {
             if (IsSmartIdleModeEnabled && player.IsIdle)
             {
+                player.DamagePercent = 0;
+                player.HealingPercent = 0;
                 player.UpdateDisplayPercentages(0, 0, 0, 0, 0, SortColumn);
                 continue;
             }
 
-            var damagePct = totalDamage > 0 ? player.TotalDamage / totalDamage * 100 : 0;
-            var healingPct = totalHealing > 0 ? player.TotalHealing / totalHealing * 100 : 0;
+            // --- 修改部分：为所有玩家计算并存储原始百分比 ---
+            player.DamagePercent = totalDamage > 0 ? player.TotalDamage / totalDamage : 0;
+            player.HealingPercent = totalHealing > 0 ? player.TotalHealing / totalHealing : 0;
+            
             var dpsPct = totalDps > 0 ? player.TotalDps / totalDps * 100 : 0;
             var hpsPct = totalHps > 0 ? player.TotalHps / totalHps * 100 : 0;
             var takenDamagePct = totalTakenDamage > 0 ? player.TakenDamage / totalTakenDamage * 100 : 0;
-
-            player.UpdateDisplayPercentages(damagePct, healingPct, dpsPct, hpsPct, takenDamagePct, SortColumn);
+            
+            player.UpdateDisplayPercentages(player.DamagePercent * 100, player.HealingPercent * 100, dpsPct, hpsPct, takenDamagePct, SortColumn);
         }
 
         Application.Current.Dispatcher.Invoke(() =>
