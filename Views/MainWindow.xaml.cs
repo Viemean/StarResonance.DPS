@@ -6,8 +6,8 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
-using StarResonance.DPS.Services;
 using Microsoft.Extensions.DependencyInjection;
+using StarResonance.DPS.Services;
 using StarResonance.DPS.ViewModels;
 
 namespace StarResonance.DPS.Views;
@@ -16,9 +16,9 @@ public partial class MainWindow
 {
     private const int GwlExstyle = -20;
     private const int WsExTransparent = 0x20;
+    private TrayIconService? _trayIconService;
 
     private MainViewModel? _viewModel;
-    private TrayIconService? _trayIconService;
 
     public MainWindow()
     {
@@ -29,7 +29,7 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// 获取指定窗口的扩展样式。
+    ///     获取指定窗口的扩展样式。
     /// </summary>
     /// <param name="hWnd">窗口句柄。</param>
     /// <param name="nIndex">要检索的值的偏移量，GWL_EXSTYLE 表示扩展样式。</param>
@@ -38,7 +38,7 @@ public partial class MainWindow
     private static partial IntPtr GetWindowLongPtrW(IntPtr hWnd, int nIndex);
 
     /// <summary>
-    /// 修改指定窗口的扩展样式。
+    ///     修改指定窗口的扩展样式。
     /// </summary>
     /// <param name="hWnd">窗口句柄。</param>
     /// <param name="nIndex">要设置的值的偏移量。</param>
@@ -61,9 +61,9 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// 启用窗口的鼠标穿透功能。
-    /// 添加 WS_EX_TRANSPARENT 样式后，窗口将不再接收鼠标事件，
-    /// 所有鼠标点击都会“穿透”到下方的窗口。
+    ///     启用窗口的鼠标穿透功能。
+    ///     添加 WS_EX_TRANSPARENT 样式后，窗口将不再接收鼠标事件，
+    ///     所有鼠标点击都会“穿透”到下方的窗口。
     /// </summary>
     private void SetWindowClickThrough()
     {
@@ -81,8 +81,8 @@ public partial class MainWindow
     }
 
     /// <summary>
-    /// 禁用窗口的鼠标穿透功能，恢复正常交互。
-    /// 移除 WS_EX_TRANSPARENT 样式后，窗口将能正常响应鼠标事件。
+    ///     禁用窗口的鼠标穿透功能，恢复正常交互。
+    ///     移除 WS_EX_TRANSPARENT 样式后，窗口将能正常响应鼠标事件。
     /// </summary>
     private void ClearWindowClickThrough()
     {
@@ -112,10 +112,7 @@ public partial class MainWindow
 
     private void MainWindow_OnStateChanged(object? sender, EventArgs e)
     {
-        if (WindowState == WindowState.Minimized)
-        {
-            Hide();
-        }
+        if (WindowState == WindowState.Minimized) Hide();
     }
 
     private async void OnMainWindowLoaded(object sender, RoutedEventArgs e)
@@ -140,7 +137,8 @@ public partial class MainWindow
     private async void OnMainWindowClosing(object? sender, CancelEventArgs e)
     {
         try
-        {   //销毁托盘图标
+        {
+            //销毁托盘图标
             _trayIconService?.Dispose();
             if (_viewModel == null) return;
             // 在窗口关闭时取消订阅，防止内存泄漏

@@ -83,6 +83,7 @@ public record UserData
     [JsonInclude]
     [JsonPropertyName("total_count")]
     public TotalCount TotalCount { get; init; } = new() { Normal = 0, Critical = 0, Lucky = 0, Total = 0 };
+
     [JsonInclude]
     [JsonPropertyName("max_hp")]
     public int MaxHp { get; init; }
@@ -220,7 +221,6 @@ public record Attr
     [JsonInclude]
     [JsonPropertyName("rank_level")]
     public int RankLevel { get; init; }
-    
 }
 
 public record SkillApiResponse
@@ -232,21 +232,4 @@ public record SkillApiResponse
     [JsonInclude]
     [JsonPropertyName("data")]
     public SkillApiResponseData? Data { get; init; }
-}
-
-public record PlayerSnapshot
-{
-    [JsonInclude] public UserData UserData { get; init; } = new();
-    [JsonInclude] public SkillApiResponseData? SkillData { get; init; }
-    
-    // --- 百分比属性 ---
-    [JsonInclude] public double DamagePercent { get; init; }
-    [JsonInclude] public double HealingPercent { get; init; }
-}
-
-public record SnapshotData
-{
-    [JsonInclude] public int ElapsedSeconds { get; init; }
-
-    [JsonInclude] public List<PlayerSnapshot> Players { get; init; } = [];
 }

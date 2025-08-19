@@ -104,9 +104,8 @@
                         <Grid x:Name="templateRoot" SnapsToDevicePixels="true">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition
-                                    MinWidth="{DynamicResource {x:Static SystemParameters.VerticalScrollBarWidthKey}}"
-                                    Width="0" />
+                                <!-- <ColumnDefinition Width="0" /> -->
+                                <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <Popup x:Name="PART_Popup" AllowsTransparency="true" Grid.ColumnSpan="2"
                                    IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
@@ -285,6 +284,7 @@
 
                 <Border Grid.Row="0" Background="#333" CornerRadius="8,8,0,0" Padding="5"
                         MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+
                     <DockPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
                             <Button Content="—" ToolTip="{Binding Localization[Minimize]}" FontWeight="Bold"
@@ -298,17 +298,22 @@
 
                         <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" VerticalAlignment="Center"
                                     Margin="5,0">
-                            <Button Content="💾" ToolTip="创建快照" Command="{Binding SaveSnapshotCommand}" Padding="8,2"
-                                    Style="{StaticResource TransparentButtonStyle}" />
-                            <Button Content="📂" ToolTip="导入快照" Command="{Binding LoadSnapshotCommand}" Padding="8,2"
-                                    Style="{StaticResource TransparentButtonStyle}" Margin="5,0,0,0" />
+                            <StackPanel Orientation="Horizontal" Visibility="{Binding RealtimeModeVisibility}">
+                                <Button Content="💾" ToolTip="创建快照"
+                                        Command="{Binding SnapshotViewModel.SaveSnapshotCommand}" Padding="8,2"
+                                        Style="{StaticResource TransparentButtonStyle}" />
+                                <Button Content="📂" ToolTip="导入快照"
+                                        Command="{Binding SnapshotViewModel.LoadSnapshotCommand}" Padding="8,2"
+                                        Style="{StaticResource TransparentButtonStyle}" Margin="5,0,0,0" />
+                            </StackPanel>
                             <TextBlock Text="{Binding CurrentTime}" Foreground="Cyan" FontWeight="Bold"
                                        VerticalAlignment="Center" Margin="8,0,15,0" />
                         </StackPanel>
 
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" MinWidth="200" /> <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" MinWidth="200" />
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
@@ -360,6 +365,18 @@
                             </Border>
 
                             <Grid Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal" Visibility="{Binding SnapshotModeVisibility}">
+                                    <TextBlock Text="[快照模式] " Foreground="Orange" FontWeight="Bold"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding SnapshotViewModel.LoadedSnapshotFileName}"
+                                               Foreground="White" VerticalAlignment="Center" />
+                                    <Button Content="返回实时"
+                                            Command="{Binding SnapshotViewModel.ExitSnapshotModeCommand}"
+                                            Margin="10,0,0,0"
+                                            Style="{StaticResource TransparentButtonStyle}" />
+                                </StackPanel>
+
+
                                 <StackPanel Orientation="Horizontal" Visibility="{Binding RealtimeModeVisibility}">
                                     <Ellipse Width="10" Height="10" Fill="{Binding PauseStatusColor}" Margin="5,0,5,0"
                                              VerticalAlignment="Center" />
@@ -397,14 +414,6 @@
                                             Style="{StaticResource TransparentButtonStyle}">
                                         <TextBlock Text="🕒" Foreground="White" VerticalAlignment="Center" />
                                     </Button>
-                                </StackPanel>
-                                <StackPanel Orientation="Horizontal" Visibility="{Binding SnapshotModeVisibility}">
-                                    <TextBlock Text="[快照模式] " Foreground="Orange" FontWeight="Bold"
-                                               VerticalAlignment="Center" />
-                                    <TextBlock Text="{Binding LoadedSnapshotFileName}" Foreground="White"
-                                               VerticalAlignment="Center" />
-                                    <Button Content="返回实时" Click="ResetButton_Click" Margin="10,0,0,0"
-                                            Style="{StaticResource TransparentButtonStyle}" />
                                 </StackPanel>
                             </Grid>
                         </Grid>

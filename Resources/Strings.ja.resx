@@ -45,7 +45,7 @@
     <data name="Exit" xml:space="preserve">
     <value>終了</value>
   </data>
-  <data name="FiveMinutes" xml:space="preserve">
+    <data name="FiveMinutes" xml:space="preserve">
     <value>5分</value>
   </data>
     <data name="FontSize" xml:space="preserve">
@@ -195,19 +195,22 @@
     <data name="Unknown" xml:space="preserve">
     <value>不明</value>
   </data>
-  <data name="SearchMode_ById" xml:space="preserve">
+    <data name="SearchMode_ById" xml:space="preserve">
     <value>ID</value>
   </data>
-  <data name="SearchMode_ByName" xml:space="preserve">
+    <data name="SearchMode_ByName" xml:space="preserve">
     <value>名前</value>
   </data>
-  <data name="Placeholder_ById" xml:space="preserve">
+    <data name="Placeholder_ById" xml:space="preserve">
     <value>IDの先頭または完全なIDを入力</value>
   </data>
-  <data name="Placeholder_ByName" xml:space="preserve">
+    <data name="Placeholder_ByName" xml:space="preserve">
     <value>名前の一部を入力</value>
   </data>
-  <data name="Tray_Tooltip" xml:space="preserve">
+    <data name="Tray_Tooltip" xml:space="preserve">
     <value>ダブルクリックで表示</value>
+  </data>
+    <data name="Error_LoadingSnapshot" xml:space="preserve">
+    <value>スナップショットの読み込み中にエラーが発生しました</value>
   </data>
 </root>

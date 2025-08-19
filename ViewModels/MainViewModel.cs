@@ -3,15 +3,12 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Text;
-using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Data;
-using System.Windows.Media;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
-using Microsoft.Win32;
 using StarResonance.DPS.Models;
 using StarResonance.DPS.Services;
 
@@ -22,15 +19,14 @@ namespace StarResonance.DPS.ViewModels;
 /// </summary>
 public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationService
 {
+    public enum SearchMode
+    {
+        ById,
+        ByName
+    }
+
     //闲置时长
     private const int IdleTimeoutSeconds = 30;
-
-    // 缓存并重用 JsonSerializerOptions 实例以优化性能
-    private static readonly JsonSerializerOptions SnapshotSerializerOptions = new()
-    {
-        WriteIndented = true,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-    };
 
     private readonly ApiService _apiService;
     private readonly DispatcherTimer _clockTimer;
@@ -42,477 +38,106 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
     private readonly Dictionary<string, PlayerViewModel> _playerCache = new();
 
     private readonly Dictionary<string, DateTime> _playerEntryTimes = new(); //追踪玩家首次出现的时间
+    private readonly DispatcherTimer _searchDebounceTimer; // 防抖计时器
     private readonly DispatcherTimer _skillUpdateTimer; // 用于实时更新展开的技能列表
     private readonly string _stateFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "dps_state.json");
     private readonly DispatcherTimer _stateSaveTimer;
 
     private readonly DispatcherTimer _uiUpdateTimer;
-    private readonly DispatcherTimer _searchDebounceTimer; // 防抖计时器
+
+    private string _backendUrl = "ws://localhost:8989";
+
+    private Brush _connectionStatusColor = Brushes.Orange;
+
+    private string _connectionStatusText = "正在连接...";
+
+    private string _countdownText = "倒计时";
     private TimeSpan _countdownTimeLeft;
     private DispatcherTimer? _countdownTimer;
+
+    private string _currentTime = DateTime.Now.ToLongTimeString();
+
+    private string _customCountdownMinutes = "10";
     private int _elapsedSeconds;
     private PlayerViewModel? _expandedPlayer;
+
+    private string _fightDurationText = "0:00";
+
+    private double _fontSize = 14;
+
+    private bool _isCountdownOptionsPopupOpen;
+
+    private bool _isCountdownRunning;
+
+    private bool _isCustomCountdownPopupOpen;
     private bool _isFightActive;
-    
+
+
+    private bool _isLocked;
+
+    private bool _isNotificationVisible;
+
+    private bool _isPaused;
+
+    private bool _isPauseOnExitEnabled = true;
+
+    private bool _isPauseOnSnapshotEnabled = true;
+
+    private bool _isSettingsVisible;
+
+    private bool _isSmartIdleModeEnabled;
+
     private bool _isSortingPaused;
 
     private DateTime _lastCombatActivityTime;
     private ApiResponse? _latestReceivedData;
-    private ApiResponse? _liveDataCacheWhileInSnapshot;
 
-    public enum SearchMode
-    {
-        ById,
-        ByName
-    }
-
-    // 为本地化的ComboBox创建数据结构
-    public class SearchModeItem
-    {
-        public SearchMode Mode { get; init; }
-        public string DisplayName { get; init; } = string.Empty;
-    }
-
-    private string _backendUrl = "ws://localhost:8989";
-
-    public string BackendUrl
-    {
-        get => _backendUrl;
-        set => SetProperty(ref _backendUrl, value);
-    }
-
-    private Brush _connectionStatusColor = Brushes.Orange;
-
-    public Brush ConnectionStatusColor
-    {
-        get => _connectionStatusColor;
-        private set => SetProperty(ref _connectionStatusColor, value);
-    }
-
-    private string _connectionStatusText = "正在连接...";
-
-    public string ConnectionStatusText
-    {
-        get => _connectionStatusText;
-        private set => SetProperty(ref _connectionStatusText, value);
-    }
-
-    private string _countdownText = "倒计时";
-
-    public string CountdownText
-    {
-        get => _countdownText;
-        private set => SetProperty(ref _countdownText, value);
-    }
-
-    private string _currentTime = DateTime.Now.ToLongTimeString();
-
-    public string CurrentTime
-    {
-        get => _currentTime;
-        private set => SetProperty(ref _currentTime, value);
-    }
-
-    private string _customCountdownMinutes = "10";
-
-    public string CustomCountdownMinutes 
-    { 
-        get => _customCountdownMinutes;
-        set
-        {
-            if (!SetProperty(ref _customCountdownMinutes, value)) return;
-            if (!double.TryParse(value, out var minutes)) return;
-            if (!(minutes > 60)) return;
-            // 更简单的方式是直接在 set 之前校验，但为了保持原逻辑，我们这样做：
-            _customCountdownMinutes = "60";
-            OnPropertyChanged(); // 再次通知UI更新为 "60"
-        } 
-    }
-
-    private string _fightDurationText = "0:00";
-
-    public string FightDurationText
-    {
-        get => _fightDurationText;
-        private set => SetProperty(ref _fightDurationText, value);
-    }
-
-    private double _fontSize = 14;
-
-    public double FontSize
-    {
-        get => _fontSize;
-        set => SetProperty(ref _fontSize, value);
-    }
-
-    private bool _isCountdownOptionsPopupOpen;
-
-    public bool IsCountdownOptionsPopupOpen
-    {
-        get => _isCountdownOptionsPopupOpen;
-        set => SetProperty(ref _isCountdownOptionsPopupOpen, value);
-    }
-
-    private bool _isCountdownRunning;
-
-    private bool IsCountdownRunning
-    {
-        get => _isCountdownRunning;
-        set
-        {
-            if (SetProperty(ref _isCountdownRunning, value))
-            {
-                OnPropertyChanged(nameof(CountdownRunningVisibility));
-                OnPropertyChanged(nameof(RealtimeModeVisibility));
-                OnPropertyChanged(nameof(FightDurationVisibility));
-            }
-        }
-    }
-
-    private bool _isCustomCountdownPopupOpen;
-
-    public bool IsCustomCountdownPopupOpen
-    {
-        get => _isCustomCountdownPopupOpen;
-        set => SetProperty(ref _isCustomCountdownPopupOpen, value);
-    }
-
-    private bool _isInSnapshotMode;
-
-    private bool IsInSnapshotMode
-    {
-        get => _isInSnapshotMode;
-        set
-        {
-            if (SetProperty(ref _isInSnapshotMode, value))
-            {
-                OnPropertyChanged(nameof(SnapshotModeVisibility));
-                OnPropertyChanged(nameof(RealtimeModeVisibility));
-            }
-        }
-    }
-
-    private bool _isLocked;
-
-    public bool IsLocked
-    {
-        get => _isLocked;
-        set
-        {
-            if (!SetProperty(ref _isLocked, value)) return;
-            LockMenuHeaderText = value ? Localization["Unlock"] ?? "解锁" : Localization["Lock"] ?? "锁定";
-            LockIconContent = value ? "🔒" : "🔓";
-            if (value) ShowNotification("可通过托盘图标右键解锁");
-            OnPropertyChanged(nameof(IsHitTestVisible));
-        }
-    }
-
-    private bool _isNotificationVisible;
-
-    private bool IsNotificationVisible
-    {
-        get => _isNotificationVisible;
-        set
-        {
-            if (SetProperty(ref _isNotificationVisible, value))
-            {
-                OnPropertyChanged(nameof(NotificationVisibility));
-            }
-        }
-    }
-
-    private bool _isPaused;
-
-    private bool IsPaused
-    {
-        get => _isPaused;
-        set
-        {
-            if (!SetProperty(ref _isPaused, value)) return;
-            PauseStatusColor = value ? Brushes.Red : Brushes.LimeGreen;
-            PauseButtonText = value ? Localization["Resume"] ?? "恢复" : Localization["Pause"] ?? "暂停";
-            OnPropertyChanged(nameof(PauseStatusVisibility));
-            OnPropertyChanged(nameof(FightDurationVisibility));
-        }
-    }
-
-    private bool _isPauseOnExitEnabled = true;
-
-    public bool IsPauseOnExitEnabled
-    {
-        get => _isPauseOnExitEnabled;
-        set => SetProperty(ref _isPauseOnExitEnabled, value);
-    }
-
-    private bool _isPauseOnSnapshotEnabled = true;
-
-    public bool IsPauseOnSnapshotEnabled
-    {
-        get => _isPauseOnSnapshotEnabled;
-        set => SetProperty(ref _isPauseOnSnapshotEnabled, value);
-    }
-
-    private bool _isSettingsVisible;
-
-    public bool IsSettingsVisible
-    {
-        get => _isSettingsVisible;
-        set
-        {
-            if (SetProperty(ref _isSettingsVisible, value))
-            {
-                OnPropertyChanged(nameof(SettingsVisibility));
-            }
-        }
-    }
-
-    private bool _isSmartIdleModeEnabled;
-
-    public bool IsSmartIdleModeEnabled
-    {
-        get => _isSmartIdleModeEnabled;
-        set
-        {
-            if (!SetProperty(ref _isSmartIdleModeEnabled, value)) return;
-            ApplySorting();
-            RefreshAndSortPlayerList();
-        }
-    }
-
-    private string _loadedSnapshotFileName = "";
-
-    public string LoadedSnapshotFileName
-    {
-        get => _loadedSnapshotFileName;
-        private set => SetProperty(ref _loadedSnapshotFileName, value);
-    }
 
     private string _lockIconContent = "🔓";
 
-    public string LockIconContent
-    {
-        get => _lockIconContent;
-        private set => SetProperty(ref _lockIconContent, value);
-    }
-
     private string _lockMenuHeaderText = "锁定";
-
-    public string LockMenuHeaderText
-    {
-        get => _lockMenuHeaderText;
-        private set => SetProperty(ref _lockMenuHeaderText, value);
-    }
 
     private string _notificationText = "";
 
-    public string NotificationText
-    {
-        get => _notificationText;
-        private set => SetProperty(ref _notificationText, value);
-    }
-
     private string _pauseButtonText = "暂停";
-
-    public string PauseButtonText
-    {
-        get => _pauseButtonText;
-        private set => SetProperty(ref _pauseButtonText, value);
-    }
 
     private Brush _pauseStatusColor = Brushes.LimeGreen;
 
-    public Brush PauseStatusColor
-    {
-        get => _pauseStatusColor;
-        private set => SetProperty(ref _pauseStatusColor, value);
-    }
-
     private ObservableCollection<PlayerViewModel> _players = [];
-
-    private ObservableCollection<PlayerViewModel> Players
-    {
-        get => _players;
-        set
-        {
-            if (SetProperty(ref _players, value))
-            {
-                PlayersView = CollectionViewSource.GetDefaultView(value);
-            }
-        }
-    }
 
     private ICollectionView _playersView;
 
-    public ICollectionView PlayersView
-    {
-        get => _playersView;
-        private set => SetProperty(ref _playersView, value);
-    }
-
     private string _searchFilterText = string.Empty;
-
-    public string SearchFilterText
-    {
-        get => _searchFilterText;
-        set
-        {
-            if (!SetProperty(ref _searchFilterText, value)) return;
-            _searchDebounceTimer.Stop();
-            _searchDebounceTimer.Start();
-        }
-    }
-
-    private SearchModeItem? _selectedSearchModeItem;
-
-    public SearchModeItem? SelectedSearchModeItem
-    {
-        get => _selectedSearchModeItem;
-        set
-        {
-            if (!SetProperty(ref _selectedSearchModeItem, value)) return;
-            ApplyFilter();
-            OnPropertyChanged(nameof(SearchPlaceholderText));
-        }
-    }
 
     private FontFamily _selectedFontFamily;
 
-    public FontFamily SelectedFontFamily
-    {
-        get => _selectedFontFamily;
-        set => SetProperty(ref _selectedFontFamily, value);
-    }
+    private SearchModeItem? _selectedSearchModeItem;
 
     private string? _sortColumn;
 
-    public string? SortColumn
-    {
-        get => _sortColumn;
-        set => SetProperty(ref _sortColumn, value);
-    }
-
     private ListSortDirection _sortDirection = ListSortDirection.Descending;
-
-    public ListSortDirection SortDirection
-    {
-        get => _sortDirection;
-        private set => SetProperty(ref _sortDirection, value);
-    }
 
     private string? _takenDamageSumTooltip;
 
-    public string? TakenDamageSumTooltip
-    {
-        get => _takenDamageSumTooltip;
-        private set => SetProperty(ref _takenDamageSumTooltip, value);
-    }
-
     private string? _totalDamageSumTooltip;
-
-    public string? TotalDamageSumTooltip
-    {
-        get => _totalDamageSumTooltip;
-        private set => SetProperty(ref _totalDamageSumTooltip, value);
-    }
 
     private string? _totalDpsSumTooltip;
 
-    public string? TotalDpsSumTooltip
-    {
-        get => _totalDpsSumTooltip;
-        private set => SetProperty(ref _totalDpsSumTooltip, value);
-    }
-
     private string? _totalHealingSumTooltip;
-
-    public string? TotalHealingSumTooltip
-    {
-        get => _totalHealingSumTooltip;
-        private set => SetProperty(ref _totalHealingSumTooltip, value);
-    }
 
     private string? _totalHpsSumTooltip;
 
-    public string? TotalHpsSumTooltip
-    {
-        get => _totalHpsSumTooltip;
-        private set => SetProperty(ref _totalHpsSumTooltip, value);
-    }
-
     private int _uiUpdateInterval = 500;
-
-    public int UiUpdateInterval
-    {
-        get => _uiUpdateInterval;
-        set
-        {
-            if (SetProperty(ref _uiUpdateInterval, value))
-            {
-                UpdateTimerInterval();
-            }
-        }
-    }
 
     private double _windowHeight = 350;
 
-    public double WindowHeight
-    {
-        get => _windowHeight;
-        set => SetProperty(ref _windowHeight, value);
-    }
-
     private double _windowLeft = 100;
-
-    public double WindowLeft
-    {
-        get => _windowLeft;
-        set => SetProperty(ref _windowLeft, value);
-    }
 
     private double _windowOpacity = 0.85;
 
-    public double WindowOpacity
-    {
-        get => _windowOpacity;
-        set
-        {
-            if (SetProperty(ref _windowOpacity, value))
-            {
-                OnPropertyChanged(nameof(FontOpacity));
-            }
-        }
-    }
-
     private double _windowTop = 100;
 
-    public double WindowTop
-    {
-        get => _windowTop;
-        set => SetProperty(ref _windowTop, value);
-    }
-
     private double _windowWidth = 700;
-
-    public double WindowWidth
-    {
-        get => _windowWidth;
-        set => SetProperty(ref _windowWidth, value);
-    }
-
-    // --- 手动实现的命令 ---
-    public ICommand OpenCountdownOptionsCommand { get; }
-    public ICommand OpenCustomCountdownCommand { get; }
-    public ICommand StartCustomCountdownCommand { get; }
-    public ICommand CancelCustomCountdownCommand { get; }
-    public ICommand ConnectToBackendCommand { get; }
-    public ICommand TogglePlayerExpansionCommand { get; }
-    public ICommand SaveSnapshotCommand { get; }
-    public ICommand LoadSnapshotCommand { get; }
-    public ICommand SortByCommand { get; }
-    public ICommand StartCountdownCommand { get; }
-    public ICommand ExitApplicationCommand { get; }
-    public ICommand IncreaseFontSizeCommand { get; }
-    public ICommand DecreaseFontSizeCommand { get; }
 
 
     public MainViewModel(ApiService apiService, LocalizationService localizationService)
@@ -524,12 +149,11 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
         ExitApplicationCommand = new RelayCommand(_ => ExitApplication());
         IncreaseFontSizeCommand = new RelayCommand(_ => IncreaseFontSize());
         DecreaseFontSizeCommand = new RelayCommand(_ => DecreaseFontSize());
-        
+
         StartCustomCountdownCommand = new AsyncRelayCommand(async _ => await StartCustomCountdown());
         ConnectToBackendCommand = new AsyncRelayCommand(async _ => await ConnectToBackendAsync());
-        TogglePlayerExpansionCommand = new AsyncRelayCommand(async player => await TogglePlayerExpansion((PlayerViewModel)player!));
-        SaveSnapshotCommand = new AsyncRelayCommand(async _ => await SaveSnapshotAsync());
-        LoadSnapshotCommand = new AsyncRelayCommand(async _ => await LoadSnapshotAsync());
+        TogglePlayerExpansionCommand =
+            new AsyncRelayCommand(async player => await TogglePlayerExpansion((PlayerViewModel)player!));
         StartCountdownCommand = new AsyncRelayCommand(async seconds => await StartCountdown((string?)seconds));
 
         _skillUpdateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -537,6 +161,13 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
         _playersView = CollectionViewSource.GetDefaultView(Players);
         _apiService = apiService;
         Localization = localizationService;
+        // 初始化 SnapshotViewModel 并订阅事件
+        SnapshotViewModel = new SnapshotViewModel(this); // this 作为 INotificationService 传入
+        SnapshotViewModel.RequestDataForSave += OnRequestDataForSave;
+        SnapshotViewModel.SnapshotLoaded += OnSnapshotLoaded;
+        SnapshotViewModel.ExitedSnapshotMode += OnExitedSnapshotMode;
+        SnapshotViewModel.PropertyChanged += SnapshotViewModel_PropertyChanged;
+
         SystemFonts = Fonts.SystemFontFamilies.OrderBy(f => f.Source);
         _selectedFontFamily = new FontFamily("Microsoft YaHei");
 
@@ -552,10 +183,7 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
             UpdateLocalizedSearchModes();
 
             // 遍历当前所有玩家ViewModel，使其缓存的本地化字符串失效并触发UI更新。
-            foreach (var player in Players)
-            {
-                player.InvalidateLocalizedStrings();
-            }
+            foreach (var player in Players) player.InvalidateLocalizedStrings();
         };
 
 
@@ -599,6 +227,324 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
         PauseButtonText = Localization["Pause"] ?? "暂停";
     }
 
+    public string BackendUrl
+    {
+        get => _backendUrl;
+        set => SetProperty(ref _backendUrl, value);
+    }
+
+    public Brush ConnectionStatusColor
+    {
+        get => _connectionStatusColor;
+        private set => SetProperty(ref _connectionStatusColor, value);
+    }
+
+    public string ConnectionStatusText
+    {
+        get => _connectionStatusText;
+        private set => SetProperty(ref _connectionStatusText, value);
+    }
+
+    public string CountdownText
+    {
+        get => _countdownText;
+        private set => SetProperty(ref _countdownText, value);
+    }
+
+    public string CurrentTime
+    {
+        get => _currentTime;
+        private set => SetProperty(ref _currentTime, value);
+    }
+
+    public string CustomCountdownMinutes
+    {
+        get => _customCountdownMinutes;
+        set
+        {
+            if (!SetProperty(ref _customCountdownMinutes, value)) return;
+            if (!double.TryParse(value, out var minutes)) return;
+            if (!(minutes > 60)) return;
+            // 更简单的方式是直接在 set 之前校验，但为了保持原逻辑，我们这样做：
+            _customCountdownMinutes = "60";
+            OnPropertyChanged(); // 再次通知UI更新为 "60"
+        }
+    }
+
+    public string FightDurationText
+    {
+        get => _fightDurationText;
+        private set => SetProperty(ref _fightDurationText, value);
+    }
+
+    public double FontSize
+    {
+        get => _fontSize;
+        set => SetProperty(ref _fontSize, value);
+    }
+
+    public bool IsCountdownOptionsPopupOpen
+    {
+        get => _isCountdownOptionsPopupOpen;
+        set => SetProperty(ref _isCountdownOptionsPopupOpen, value);
+    }
+
+    private bool IsCountdownRunning
+    {
+        get => _isCountdownRunning;
+        set
+        {
+            if (!SetProperty(ref _isCountdownRunning, value)) return;
+            OnPropertyChanged(nameof(CountdownRunningVisibility));
+            OnPropertyChanged(nameof(RealtimeModeVisibility));
+            OnPropertyChanged(nameof(FightDurationVisibility));
+        }
+    }
+
+    public bool IsCustomCountdownPopupOpen
+    {
+        get => _isCustomCountdownPopupOpen;
+        set => SetProperty(ref _isCustomCountdownPopupOpen, value);
+    }
+
+    public bool IsLocked
+    {
+        get => _isLocked;
+        set
+        {
+            if (!SetProperty(ref _isLocked, value)) return;
+            LockMenuHeaderText = value ? Localization["Unlock"] ?? "解锁" : Localization["Lock"] ?? "锁定";
+            LockIconContent = value ? "🔒" : "🔓";
+            if (value) ShowNotification("可通过托盘图标右键解锁");
+            OnPropertyChanged(nameof(IsHitTestVisible));
+        }
+    }
+
+    private bool IsNotificationVisible
+    {
+        get => _isNotificationVisible;
+        set
+        {
+            if (SetProperty(ref _isNotificationVisible, value)) OnPropertyChanged(nameof(NotificationVisibility));
+        }
+    }
+
+    private bool IsPaused
+    {
+        get => _isPaused;
+        set
+        {
+            if (!SetProperty(ref _isPaused, value)) return;
+            PauseStatusColor = value ? Brushes.Red : Brushes.LimeGreen;
+            PauseButtonText = value ? Localization["Resume"] ?? "恢复" : Localization["Pause"] ?? "暂停";
+            OnPropertyChanged(nameof(PauseStatusVisibility));
+            OnPropertyChanged(nameof(FightDurationVisibility));
+        }
+    }
+
+    public bool IsPauseOnExitEnabled
+    {
+        get => _isPauseOnExitEnabled;
+        set => SetProperty(ref _isPauseOnExitEnabled, value);
+    }
+
+    public bool IsPauseOnSnapshotEnabled
+    {
+        get => _isPauseOnSnapshotEnabled;
+        set => SetProperty(ref _isPauseOnSnapshotEnabled, value);
+    }
+
+    public bool IsSettingsVisible
+    {
+        get => _isSettingsVisible;
+        set
+        {
+            if (SetProperty(ref _isSettingsVisible, value)) OnPropertyChanged(nameof(SettingsVisibility));
+        }
+    }
+
+    public bool IsSmartIdleModeEnabled
+    {
+        get => _isSmartIdleModeEnabled;
+        set
+        {
+            if (!SetProperty(ref _isSmartIdleModeEnabled, value)) return;
+            ApplySorting();
+            RefreshAndSortPlayerList();
+        }
+    }
+
+    public string LockIconContent
+    {
+        get => _lockIconContent;
+        private set => SetProperty(ref _lockIconContent, value);
+    }
+
+    public string LockMenuHeaderText
+    {
+        get => _lockMenuHeaderText;
+        private set => SetProperty(ref _lockMenuHeaderText, value);
+    }
+
+    public string NotificationText
+    {
+        get => _notificationText;
+        private set => SetProperty(ref _notificationText, value);
+    }
+
+    public string PauseButtonText
+    {
+        get => _pauseButtonText;
+        private set => SetProperty(ref _pauseButtonText, value);
+    }
+
+    public Brush PauseStatusColor
+    {
+        get => _pauseStatusColor;
+        private set => SetProperty(ref _pauseStatusColor, value);
+    }
+
+    private ObservableCollection<PlayerViewModel> Players
+    {
+        get => _players;
+        set
+        {
+            if (SetProperty(ref _players, value)) PlayersView = CollectionViewSource.GetDefaultView(value);
+        }
+    }
+
+    public ICollectionView PlayersView
+    {
+        get => _playersView;
+        private set => SetProperty(ref _playersView, value);
+    }
+
+    public string SearchFilterText
+    {
+        get => _searchFilterText;
+        set
+        {
+            if (!SetProperty(ref _searchFilterText, value)) return;
+            _searchDebounceTimer.Stop();
+            _searchDebounceTimer.Start();
+        }
+    }
+
+    public SearchModeItem? SelectedSearchModeItem
+    {
+        get => _selectedSearchModeItem;
+        set
+        {
+            if (!SetProperty(ref _selectedSearchModeItem, value)) return;
+            ApplyFilter();
+            OnPropertyChanged(nameof(SearchPlaceholderText));
+        }
+    }
+
+    public FontFamily SelectedFontFamily
+    {
+        get => _selectedFontFamily;
+        set => SetProperty(ref _selectedFontFamily, value);
+    }
+
+    public string? SortColumn
+    {
+        get => _sortColumn;
+        set => SetProperty(ref _sortColumn, value);
+    }
+
+    public ListSortDirection SortDirection
+    {
+        get => _sortDirection;
+        private set => SetProperty(ref _sortDirection, value);
+    }
+
+    public string? TakenDamageSumTooltip
+    {
+        get => _takenDamageSumTooltip;
+        private set => SetProperty(ref _takenDamageSumTooltip, value);
+    }
+
+    public string? TotalDamageSumTooltip
+    {
+        get => _totalDamageSumTooltip;
+        private set => SetProperty(ref _totalDamageSumTooltip, value);
+    }
+
+    public string? TotalDpsSumTooltip
+    {
+        get => _totalDpsSumTooltip;
+        private set => SetProperty(ref _totalDpsSumTooltip, value);
+    }
+
+    public string? TotalHealingSumTooltip
+    {
+        get => _totalHealingSumTooltip;
+        private set => SetProperty(ref _totalHealingSumTooltip, value);
+    }
+
+    public string? TotalHpsSumTooltip
+    {
+        get => _totalHpsSumTooltip;
+        private set => SetProperty(ref _totalHpsSumTooltip, value);
+    }
+
+    public int UiUpdateInterval
+    {
+        get => _uiUpdateInterval;
+        set
+        {
+            if (SetProperty(ref _uiUpdateInterval, value)) UpdateTimerInterval();
+        }
+    }
+
+    public double WindowHeight
+    {
+        get => _windowHeight;
+        set => SetProperty(ref _windowHeight, value);
+    }
+
+    public double WindowLeft
+    {
+        get => _windowLeft;
+        set => SetProperty(ref _windowLeft, value);
+    }
+
+    public double WindowOpacity
+    {
+        get => _windowOpacity;
+        set
+        {
+            if (SetProperty(ref _windowOpacity, value)) OnPropertyChanged(nameof(FontOpacity));
+        }
+    }
+
+    public double WindowTop
+    {
+        get => _windowTop;
+        set => SetProperty(ref _windowTop, value);
+    }
+
+    public double WindowWidth
+    {
+        get => _windowWidth;
+        set => SetProperty(ref _windowWidth, value);
+    }
+
+    // --- 手动实现的命令 ---
+    public ICommand OpenCountdownOptionsCommand { get; }
+    public ICommand OpenCustomCountdownCommand { get; }
+    public ICommand StartCustomCountdownCommand { get; }
+    public ICommand CancelCustomCountdownCommand { get; }
+    public ICommand ConnectToBackendCommand { get; }
+    public ICommand TogglePlayerExpansionCommand { get; }
+    public ICommand SortByCommand { get; }
+    public ICommand StartCountdownCommand { get; }
+    public ICommand ExitApplicationCommand { get; }
+    public ICommand IncreaseFontSizeCommand { get; }
+    public ICommand DecreaseFontSizeCommand { get; }
+    public SnapshotViewModel SnapshotViewModel { get; }
+
     public ObservableCollection<SearchModeItem> LocalizedSearchModes { get; } = new();
 
     public string SearchPlaceholderText => SelectedSearchModeItem?.Mode switch
@@ -608,53 +554,12 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
         _ => "搜索..."
     };
 
-    private void UpdateLocalizedSearchModes()
-    {
-        var currentMode = SelectedSearchModeItem?.Mode ?? SearchMode.ByName;
-        LocalizedSearchModes.Clear();
-        LocalizedSearchModes.Add(new SearchModeItem
-            { Mode = SearchMode.ByName, DisplayName = Localization["SearchMode_ByName"] ?? "Name" });
-        LocalizedSearchModes.Add(new SearchModeItem
-            { Mode = SearchMode.ById, DisplayName = Localization["SearchMode_ById"] ?? "ID" });
+    public Visibility SnapshotModeVisibility =>
+        SnapshotViewModel.IsInSnapshotMode ? Visibility.Visible : Visibility.Collapsed;
 
-        SelectedSearchModeItem = LocalizedSearchModes.FirstOrDefault(i => i.Mode == currentMode);
-    }
+    public Visibility RealtimeModeVisibility =>
+        SnapshotViewModel.IsInSnapshotMode ? Visibility.Collapsed : Visibility.Visible;
 
-    public void ShowNotification(string message)
-    {
-        NotificationText = message;
-        IsNotificationVisible = true;
-        _notificationTimer.Stop();
-        _notificationTimer.Start();
-    }
-    
-
-    private void ApplyFilter()
-    {
-        if (SelectedSearchModeItem is null) return;
-
-        var filterText = SearchFilterText.Trim();
-
-        if (string.IsNullOrEmpty(filterText))
-        {
-            foreach (var player in Players)
-            {
-                player.IsMatchInFilter = true;
-            }
-
-            return;
-        }
-
-        foreach (var player in Players)
-        {
-            player.IsMatchInFilter = SelectedSearchModeItem.Mode == SearchMode.ByName
-                ? player.DisplayName.Contains(filterText, StringComparison.OrdinalIgnoreCase)
-                : player.Uid.ToString().StartsWith(filterText);
-        }
-    } //用于替换 IValueConverter 的计算属性
-
-    public Visibility SnapshotModeVisibility => IsInSnapshotMode ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility RealtimeModeVisibility => IsInSnapshotMode ? Visibility.Collapsed : Visibility.Visible;
     public Visibility CountdownRunningVisibility => IsCountdownRunning ? Visibility.Visible : Visibility.Collapsed;
     public Visibility PauseStatusVisibility => IsPaused ? Visibility.Visible : Visibility.Collapsed;
 
@@ -691,14 +596,168 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
         await _apiService.DisposeAsync();
         GC.SuppressFinalize(this);
     }
-    
+
+    public void ShowNotification(string message)
+    {
+        NotificationText = message;
+        IsNotificationVisible = true;
+        _notificationTimer.Stop();
+        _notificationTimer.Start();
+    }
+
+    private void SnapshotViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        // 检查是否是 IsInSnapshotMode 属性发生了变化
+        if (e.PropertyName != nameof(SnapshotViewModel.IsInSnapshotMode)) return;
+        // 如果是，就通知UI更新所有依赖于这个状态的属性
+        OnPropertyChanged(nameof(RealtimeModeVisibility));
+        OnPropertyChanged(nameof(SnapshotModeVisibility));
+    }
+
+    private void UpdateLocalizedSearchModes()
+    {
+        var currentMode = SelectedSearchModeItem?.Mode ?? SearchMode.ByName;
+        LocalizedSearchModes.Clear();
+        LocalizedSearchModes.Add(new SearchModeItem
+            { Mode = SearchMode.ByName, DisplayName = Localization["SearchMode_ByName"] ?? "Name" });
+        LocalizedSearchModes.Add(new SearchModeItem
+            { Mode = SearchMode.ById, DisplayName = Localization["SearchMode_ById"] ?? "ID" });
+
+        SelectedSearchModeItem = LocalizedSearchModes.FirstOrDefault(i => i.Mode == currentMode);
+    }
+
+    private async Task<SnapshotData?> OnRequestDataForSave()
+    {
+        // 确保所有玩家的技能数据都已获取
+        foreach (var player in _playerCache.Values.Where(p => p.RawSkillData == null))
+        {
+            var skillData = await _apiService.GetSkillDataAsync(player.Uid);
+            if (skillData?.Data != null) player.RawSkillData = skillData.Data;
+        }
+
+        return new SnapshotData
+        {
+            ElapsedSeconds = _elapsedSeconds,
+            Players = _playerCache.Values.Select(p => new PlayerSnapshot
+            {
+                UserData = p.UserData!,
+                SkillData = p.RawSkillData,
+                DamagePercent = p.DamagePercent,
+                HealingPercent = p.HealingPercent
+            }).ToList()
+        };
+    }
+
+    private async void OnSnapshotLoaded(SnapshotData snapshot)
+    {
+        try
+        {
+            // 1. 暂停实时服务和计时器
+            if (IsPauseOnSnapshotEnabled)
+            {
+                await _apiService.SetPauseStateAsync(true);
+                _apiService.DataReceived -= OnDataReceived;
+            }
+
+            _fightTimer.Stop();
+            _uiUpdateTimer.Stop();
+
+            // 2. 加载快照核心数据
+            _elapsedSeconds = snapshot.ElapsedSeconds;
+            var timeSpan = TimeSpan.FromSeconds(_elapsedSeconds);
+            FightDurationText =
+                timeSpan.TotalHours >= 1 ? timeSpan.ToString(@"h\:mm\:ss") : timeSpan.ToString(@"m\:ss");
+            _isFightActive = true;
+
+            var newPlayerList = snapshot.Players
+                .Select(ps => new PlayerViewModel(ps, FightDurationText, Localization, this)).ToList();
+            var newPlayerCache = newPlayerList.ToDictionary(p => p.Uid.ToString(), p => p);
+
+            _playerCache.Clear();
+            foreach (var entry in newPlayerCache) _playerCache.Add(entry.Key, entry.Value);
+            Players = new ObservableCollection<PlayerViewModel>(newPlayerList);
+
+            RefreshAndSortPlayerList();
+            OnPropertyChanged(nameof(PlayerCount));
+
+            // 3. 成功加载后的收尾工作 (从 finally 移至此处)
+            if (IsPauseOnSnapshotEnabled) IsPaused = true; // 更新UI为暂停状态
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine($"Error loading snapshot: {e.Message}");
+            // 确保添加了 "Error_LoadingSnapshot" 到你的 resx 文件中
+            ShowNotification(Localization["Error_LoadingSnapshot"] ?? "加载快照时出错");
+
+            // 如果加载失败，最好是直接退出快照模式
+            SnapshotViewModel.ExitSnapshotModeCommand.Execute(null);
+        }
+    }
+
+    private async void OnExitedSnapshotMode()
+    {
+        try
+        {
+            // 这是从旧的 ResetDataAsync 方法中处理退出快照模式的逻辑
+            _fightTimer.Stop();
+            _elapsedSeconds = 0;
+            FightDurationText = "0:00";
+            _isFightActive = false;
+            _lastCombatActivityTime = DateTime.MinValue;
+
+            Players.Clear();
+            _playerCache.Clear();
+
+            if (IsPauseOnSnapshotEnabled)
+            {
+                var (success, isPaused) = await _apiService.GetPauseStateAsync();
+                if (success && isPaused) IsPaused = true;
+                else IsPaused = false;
+            }
+
+            var initialData = await _apiService.GetInitialDataAsync();
+            if (initialData != null) await ProcessData(initialData);
+
+            _apiService.DataReceived += OnDataReceived;
+            _uiUpdateTimer.Start();
+            await _apiService.ConnectAsync();
+            ShowNotification("已返回实时模式");
+            OnPropertyChanged(nameof(PlayerCount));
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine($"Error exiting snapshot mode: {e.Message}");
+        }
+    }
+
+
+    private void ApplyFilter()
+    {
+        if (SelectedSearchModeItem is null) return;
+
+        var filterText = SearchFilterText.Trim();
+
+        if (string.IsNullOrEmpty(filterText))
+        {
+            foreach (var player in Players) player.IsMatchInFilter = true;
+
+            return;
+        }
+
+        foreach (var player in Players)
+            player.IsMatchInFilter = SelectedSearchModeItem.Mode == SearchMode.ByName
+                ? player.DisplayName.Contains(filterText, StringComparison.OrdinalIgnoreCase)
+                : player.Uid.ToString().StartsWith(filterText);
+    } //用于替换 IValueConverter 的计算属性
+
 
     private async void SkillUpdateTimer_Tick(object? sender, EventArgs e)
     {
         try
         {
             // 如果存在一个已展开的玩家，并且我们不在快照模式下，则刷新其技能数据
-            if (_expandedPlayer != null && !IsInSnapshotMode) await FetchAndProcessSkillDataAsync(_expandedPlayer);
+            if (_expandedPlayer != null && !SnapshotViewModel.IsInSnapshotMode)
+                await FetchAndProcessSkillDataAsync(_expandedPlayer);
         }
         catch (Exception error)
         {
@@ -976,7 +1035,7 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
     private async Task FetchAndProcessSkillDataAsync(PlayerViewModel player)
     {
         //增加快照模式下的逻辑
-        if (IsInSnapshotMode)
+        if (SnapshotViewModel.IsInSnapshotMode)
         {
             // 在快照模式下，从已加载的 RawSkillData 填充技能列表
             await Application.Current.Dispatcher.InvokeAsync(() => player.Skills.Clear());
@@ -1045,128 +1104,6 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
     }
 
 
-    private async Task SaveSnapshotAsync()
-    {
-        if (!Players.Any())
-        {
-            ShowNotification("没有数据可以保存");
-            return;
-        }
-
-        // 确保所有玩家的技能数据都已获取
-        foreach (var player in _playerCache.Values.Where(p => p.RawSkillData == null))
-        {
-            var skillData = await _apiService.GetSkillDataAsync(player.Uid);
-            if (skillData?.Data != null) player.RawSkillData = skillData.Data;
-        }
-
-        var snapshot = new SnapshotData
-        {
-            ElapsedSeconds = _elapsedSeconds,
-            Players = _playerCache.Values.Select(p => new PlayerSnapshot
-            {
-                UserData = p.UserData!,
-                SkillData = p.RawSkillData,
-                // --- 修改部分：保存百分比 ---
-                DamagePercent = p.DamagePercent,
-                HealingPercent = p.HealingPercent
-            }).ToList()
-        };
-
-        try
-        {
-            var fileName = $"StarResonance.DPS-{DateTime.Now:yyyyMMdd_HHmmss}.json";
-            var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
-
-            var json = JsonSerializer.Serialize(snapshot, SnapshotSerializerOptions);
-
-            await File.WriteAllTextAsync(filePath, json, Encoding.UTF8);
-            ShowNotification($"快照已保存: {fileName}");
-        }
-        catch (Exception ex)
-        {
-            ShowNotification($"保存失败: {ex.Message}");
-        }
-    }
-
-
-    private async Task LoadSnapshotAsync()
-    {
-        var openFileDialog = new OpenFileDialog
-        {
-            Filter = "JSON Files (*.json)|*.json|All files (*.*)|*.*",
-            InitialDirectory = AppDomain.CurrentDomain.BaseDirectory
-        };
-
-        if (openFileDialog.ShowDialog() != true) return;
-
-        try
-        {
-            var json = await File.ReadAllTextAsync(openFileDialog.FileName);
-            var snapshot = JsonSerializer.Deserialize<SnapshotData>(json);
-
-            if (snapshot == null)
-            {
-                ShowNotification("无法解析快照文件");
-                return;
-            }
-
-            // --- 修改部分 ---
-            if (IsPauseOnSnapshotEnabled)
-            {
-                await _apiService.SetPauseStateAsync(true);
-                _apiService.DataReceived -= OnDataReceived;
-            }
-            // 如果未勾选，则保持连接和订阅
-
-            _fightTimer.Stop();
-            _uiUpdateTimer.Stop(); // 停止UI刷新计时器
-
-            _elapsedSeconds = snapshot.ElapsedSeconds;
-            var timeSpan = TimeSpan.FromSeconds(_elapsedSeconds);
-            FightDurationText =
-                timeSpan.TotalHours >= 1 ? timeSpan.ToString(@"h\:mm\:ss") : timeSpan.ToString(@"m\:ss");
-            _isFightActive = true;
-
-            // --- 性能优化点 ---
-            // 1. 在内存中构建列表，避免多次触发UI更新
-            var newPlayerList = new List<PlayerViewModel>(snapshot.Players.Count);
-            var newPlayerCache = new Dictionary<string, PlayerViewModel>(snapshot.Players.Count);
-
-            foreach (var playerSnapshot in snapshot.Players)
-            {
-                var playerVm = new PlayerViewModel(playerSnapshot, FightDurationText, Localization, this);
-                var key = playerVm.Uid.ToString();
-                newPlayerCache.Add(key, playerVm);
-                newPlayerList.Add(playerVm);
-            }
-
-            // 2. 一次性替换集合和缓存，触发单次UI更新
-            _playerCache.Clear();
-            foreach (var entry in newPlayerCache) _playerCache.Add(entry.Key, entry.Value);
-
-            Players = new ObservableCollection<PlayerViewModel>(newPlayerList);
-
-            // 3. 调用优化后的排序和刷新方法
-            RefreshAndSortPlayerList();
-
-            // 手动通知UI更新PlayerCount属性
-            OnPropertyChanged(nameof(PlayerCount));
-
-            var fileNameToShow = Path.GetFileName(openFileDialog.FileName);
-            if (fileNameToShow.StartsWith("StarResonance.DPS-"))
-                fileNameToShow = fileNameToShow["StarResonance.DPS-".Length..];
-
-            LoadedSnapshotFileName = fileNameToShow;
-            IsInSnapshotMode = true;
-            ShowNotification("快照加载成功");
-        }
-        catch (Exception ex)
-        {
-            ShowNotification($"加载失败: {ex.Message}");
-        }
-    }
-
     private void UpdateTimerInterval()
     {
         _uiUpdateTimer.Interval = TimeSpan.FromMilliseconds(UiUpdateInterval);
@@ -1174,13 +1111,11 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
 
     private void OnDataReceived(ApiResponse data)
     {
-        // --- 新增逻辑 ---
-        if (IsInSnapshotMode)
+        if (SnapshotViewModel.IsInSnapshotMode)
         {
             // 在快照模式下，如果仍在接收数据，则将其缓存但不处理
             lock (_dataLock)
             {
-                _liveDataCacheWhileInSnapshot = data;
             }
 
             return;
@@ -1407,18 +1342,13 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
         {
             var property = typeof(PlayerViewModel).GetProperty(SortColumn);
             if (property != null)
-            {
                 sortedPlayers = SortDirection == ListSortDirection.Ascending
                     ? sortedPlayers.OrderBy(p => property.GetValue(p)).ToList()
                     : sortedPlayers.OrderByDescending(p => property.GetValue(p)).ToList();
-            }
         }
 
         // 优先排序规则（闲置模式）
-        if (IsSmartIdleModeEnabled)
-        {
-            sortedPlayers = sortedPlayers.OrderBy(p => p.IsIdle).ToList();
-        }
+        if (IsSmartIdleModeEnabled) sortedPlayers = sortedPlayers.OrderBy(p => p.IsIdle).ToList();
 
         // 3. 计算百分比和排名
         var playersForCalcs = IsSmartIdleModeEnabled ? sortedPlayers.Where(p => !p.IsIdle).ToList() : sortedPlayers;
@@ -1484,76 +1414,6 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
         _skillUpdateTimer.Stop();
         _expandedPlayer = null;
         _isSortingPaused = false; //确保重置时解除排序暂停
-        if (IsInSnapshotMode)
-        {
-            IsInSnapshotMode = false;
-            LoadedSnapshotFileName = "";
-
-            // 重置战斗状态
-            _fightTimer.Stop();
-
-            // --- 修改部分 ---
-            if (IsPauseOnSnapshotEnabled)
-            {
-                // 行为与之前类似，执行完全重置
-                _elapsedSeconds = 0;
-                FightDurationText = "0:00";
-                _isFightActive = false;
-                _lastCombatActivityTime = DateTime.MinValue;
-
-                Players.Clear();
-                _playerCache.Clear();
-
-                var (success, isPaused) = await _apiService.GetPauseStateAsync();
-                if (success && isPaused)
-                {
-                    IsPaused = true;
-                    ShowNotification("已返回实时模式 (服务暂停中)");
-                }
-                else
-                {
-                    IsPaused = false;
-                    var initialData = await _apiService.GetInitialDataAsync();
-                    if (initialData != null) await ProcessData(initialData);
-                    ShowNotification("已返回实时模式");
-                }
-
-                _apiService.DataReceived += OnDataReceived;
-                _uiUpdateTimer.Start();
-                await _apiService.ConnectAsync();
-            }
-            else
-            {
-                // 如果服务未暂停，则使用缓存数据进行无缝切换
-                Players.Clear();
-                _playerCache.Clear();
-
-                ApiResponse? dataToProcess;
-                lock (_dataLock)
-                {
-                    dataToProcess = _liveDataCacheWhileInSnapshot;
-                    _liveDataCacheWhileInSnapshot = null;
-                }
-
-                if (dataToProcess != null)
-                {
-                    await ProcessData(dataToProcess);
-                }
-                else
-                {
-                    // 如果在快照期间没有收到任何数据，则主动获取一次
-                    var initialData = await _apiService.GetInitialDataAsync();
-                    if (initialData != null) await ProcessData(initialData);
-                }
-
-                _uiUpdateTimer.Start();
-                ShowNotification("已返回实时模式");
-            }
-
-            OnPropertyChanged(nameof(PlayerCount));
-            return;
-        }
-
         //处理非快照模式下的重置逻辑
         _fightTimer.Stop();
         _elapsedSeconds = 0;
@@ -1742,6 +1602,13 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
 
         // 如果有玩家的状态变为了闲置，则调用 UpdatePlayerList 来刷新UI
         if (needsRefresh) RefreshAndSortPlayerList();
+    }
+
+    // 为本地化的ComboBox创建数据结构
+    public class SearchModeItem
+    {
+        public SearchMode Mode { get; init; }
+        public string DisplayName { get; init; } = string.Empty;
     }
 
     public static class SortableColumns

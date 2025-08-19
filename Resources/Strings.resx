@@ -45,7 +45,7 @@
     <data name="Exit" xml:space="preserve">
     <value>退出</value>
   </data>
-  <data name="FiveMinutes" xml:space="preserve">
+    <data name="FiveMinutes" xml:space="preserve">
     <value>5 分钟</value>
   </data>
     <data name="FontSize" xml:space="preserve">
@@ -195,19 +195,22 @@
     <data name="Unknown" xml:space="preserve">
     <value>未知</value>
   </data>
-  <data name="Placeholder_ById" xml:space="preserve">
+    <data name="Placeholder_ById" xml:space="preserve">
     <value>请输入前几位ID或完整ID</value>
   </data>
-  <data name="Placeholder_ByName" xml:space="preserve">
+    <data name="Placeholder_ByName" xml:space="preserve">
     <value>请输入昵称包含的任意字符</value>
   </data>
-  <data name="SearchMode_ById" xml:space="preserve">
+    <data name="SearchMode_ById" xml:space="preserve">
     <value>ID</value>
   </data>
-  <data name="SearchMode_ByName" xml:space="preserve">
+    <data name="SearchMode_ByName" xml:space="preserve">
     <value>昵称</value>
   </data>
-  <data name="Tray_Tooltip" xml:space="preserve">
+    <data name="Tray_Tooltip" xml:space="preserve">
     <value>双击显示</value>
+  </data>
+    <data name="Error_LoadingSnapshot" xml:space="preserve">
+    <value>加载快照时出错</value>
   </data>
 </root>
