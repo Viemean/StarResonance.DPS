@@ -4,7 +4,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:viewModels="clr-namespace:StarResonance.DPS.ViewModels"
         xmlns:views="clr-namespace:StarResonance.DPS.Views"
         xmlns:converters="clr-namespace:StarResonance.DPS.Converters"
@@ -25,7 +24,6 @@
     <Window.Resources>
         <converters:SortDirectionToArrowConverter x:Key="SortDirectionToArrowConverter" />
         <converters:SortColumnVisibilityConverter x:Key="SortColumnVisibilityConverter" />
-        <converters:FontFamilyNameConverter x:Key="FontFamilyNameConverter" />
 
         <Style x:Key="DarkComboBoxItemStyle" TargetType="{x:Type ComboBoxItem}">
             <Setter Property="SnapsToDevicePixels" Value="true" />
@@ -495,140 +493,9 @@
                             </DataTemplate>
                         </ListView.ItemTemplate>
                     </ListView>
-                    <Border Grid.Row="2" Background="#444" Margin="5" Padding="10" CornerRadius="5"
-                            Visibility="{Binding SettingsVisibility}">
-                        <Border.Resources>
-                            <Style TargetType="TextBox">
-                                <Setter Property="Padding" Value="3" />
-                                <Setter Property="BorderThickness" Value="1" />
-                                <Setter Property="BorderBrush" Value="#666" />
-                            </Style>
-                            <Style TargetType="ComboBox">
-                                <Setter Property="Padding" Value="3" />
-                                <Setter Property="BorderThickness" Value="1" />
-                                <Setter Property="BorderBrush" Value="#666" />
-                            </Style>
-                            <Style x:Key="UpDownButtonStyle" TargetType="Button">
-                                <Setter Property="Padding" Value="3,0" />
-                                <Setter Property="FontFamily" Value="Segoe UI Symbol" />
-                                <Setter Property="FontSize" Value="8" />
-                                <Setter Property="Width" Value="15" />
-                                <Setter Property="BorderThickness" Value="1" />
-                                <Setter Property="BorderBrush" Value="#666" />
-                                <Setter Property="Background" Value="#555" />
-                                <Setter Property="Foreground" Value="White" />
-                            </Style>
-                        </Border.Resources>
-
-                        <StackPanel>
-                            <WrapPanel Orientation="Horizontal">
-                                <CheckBox Content="{Binding Localization[SmartIdleMode]}"
-                                          IsChecked="{Binding IsSmartIdleModeEnabled, Mode=TwoWay}"
-                                          Foreground="White" VerticalAlignment="Center"
-                                          ToolTip="{Binding Localization[SmartIdleMode_Tooltip]}"
-                                          MinWidth="165" />
-
-                                <CheckBox Content="{Binding Localization[PauseOnExit]}"
-                                          IsChecked="{Binding IsPauseOnExitEnabled, Mode=TwoWay}"
-                                          Foreground="White" VerticalAlignment="Center"
-                                          Margin="10,0,0,0"
-                                          MinWidth="165" />
-
-                                <CheckBox Content="{Binding Localization[PauseOnSnapshot]}"
-                                          IsChecked="{Binding IsPauseOnSnapshotEnabled, Mode=TwoWay}"
-                                          Foreground="White" VerticalAlignment="Center"
-                                          Margin="10,0,20,0"
-                                          MinWidth="165" />
-
-                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Localization[FontSize]}" Foreground="White"
-                                               VerticalAlignment="Center" Margin="0,0,5,0"
-                                               FontFamily="{Binding SelectedFontFamily}"
-                                               FontSize="{Binding FontSize, Mode=OneWay}" />
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBox Grid.Column="0" Text="{Binding FontSize, Mode=TwoWay}"
-                                                 TextAlignment="Center" Width="40" VerticalAlignment="Center" />
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="-1,0,0,0">
-                                            <Button Content="▲" Height="11" Command="{Binding IncreaseFontSizeCommand}"
-                                                    Style="{StaticResource UpDownButtonStyle}" />
-                                            <Button Content="▼" Height="11" Command="{Binding DecreaseFontSizeCommand}"
-                                                    Style="{StaticResource UpDownButtonStyle}" Margin="0,1,0,0" />
-                                        </StackPanel>
-                                    </Grid>
-                                    <ComboBox ItemsSource="{Binding SystemFonts}"
-                                              SelectedItem="{Binding SelectedFontFamily, Mode=TwoWay}"
-                                              Width="160" Margin="10,0,0,0" VerticalAlignment="Center">
-                                        <ComboBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <TextBlock
-                                                    Text="{Binding Converter={StaticResource FontFamilyNameConverter}}"
-                                                    FontFamily="{Binding}" />
-                                            </DataTemplate>
-                                        </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                </StackPanel>
-                            </WrapPanel>
-
-                            <TextBlock Text="{Binding Localization[WindowOpacity]}" Foreground="White"
-                                       Margin="0,10,0,0" />
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <Slider Grid.Column="0" x:Name="OpacitySlider" Minimum="0.3" Maximum="1.0"
-                                        Value="{Binding WindowOpacity, Mode=TwoWay}"
-                                        SmallChange="0.05" TickFrequency="0.05" />
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding Value, ElementName=OpacitySlider, StringFormat={}{0:P0}}"
-                                           MinWidth="35" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                           Margin="5,0,0,0" Foreground="White" />
-                            </Grid>
-
-                            <Grid Margin="0,10,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="2*" />
-                                    <ColumnDefinition Width="1*" />
-                                    <ColumnDefinition Width="1*" />
-                                </Grid.ColumnDefinitions>
-
-                                <StackPanel Grid.Column="0" Margin="0,0,10,0">
-                                    <TextBlock Text="{Binding Localization[BackendAddress]}" Foreground="White" />
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <TextBox Grid.Column="0"
-                                                 Text="{Binding BackendUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                 VerticalAlignment="Center" />
-                                        <Button Grid.Column="1" Content="{Binding Localization[Connect]}"
-                                                Command="{Binding ConnectToBackendCommand}" Margin="5,0,0,0"
-                                                Padding="10,3" />
-                                    </Grid>
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="1" Margin="0,0,10,0">
-                                    <TextBlock Text="{Binding Localization[UIRefreshInterval]}" Foreground="White" />
-                                    <ComboBox SelectedItem="{Binding UiUpdateInterval}">
-                                        <sys:Int32>250</sys:Int32>
-                                        <sys:Int32>500</sys:Int32>
-                                        <sys:Int32>1000</sys:Int32>
-                                    </ComboBox>
-                                </StackPanel>
-
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="{Binding Localization[Language]}" Foreground="White" />
-                                    <ComboBox ItemsSource="{Binding Localization.SupportedLanguages}"
-                                              SelectedItem="{Binding Localization.CurrentCulture, Mode=TwoWay}"
-                                              DisplayMemberPath="Parent.NativeName" />
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
+                    <views:SettingsView Grid.Row="2"
+                                        DataContext="{Binding}"
+                                        Visibility="{Binding SettingsVisibility}" />
                 </Grid>
 
                 <Border Grid.Row="0" Grid.RowSpan="2" Background="#A0000000" CornerRadius="5" Padding="15,10"
