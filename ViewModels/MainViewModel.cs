@@ -985,13 +985,38 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
 
     private async Task ConnectToBackendAsync()
     {
+        // 检查是否已连接到相同的地址
+        if (_apiService.IsConnected && _apiService.CurrentUrl.Equals(BackendUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            ShowNotification("已经连接到该服务地址");
+            return;
+        }
         ConnectionStatusText = Localization["Connecting"] ?? "正在连接...";
         ConnectionStatusColor = Brushes.Orange;
         await _apiService.ReinitializeAsync(BackendUrl);
         var isRunning = await _apiService.CheckServiceRunningAsync();
         if (isRunning)
         {
-            await ResetDataAsync();
+            _fightTimer.Stop();
+            _elapsedSeconds = 0;
+            FightDurationText = "0:00";
+            _isFightActive = false;
+            _lastCombatActivityTime = DateTime.MinValue;
+            // 清空本地玩家列表
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                Players.Clear();
+                _playerCache.Clear();
+                OnPropertyChanged(nameof(PlayerCount));
+                UpdateColumnTotals();
+            });
+            // 从新服务器获取初始数据
+            var initialData = await _apiService.GetInitialDataAsync();
+            if (initialData != null)
+            {
+                await ProcessData(initialData);
+            }
+
             await _apiService.ConnectAsync();
             ShowNotification("连接成功！");
         }
@@ -1172,6 +1197,8 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
         try
         {
             LoadState();
+            // 在进行任何网络操作前，使用加载的 BackendUrl 重新初始化 ApiService
+            await _apiService.ReinitializeAsync(BackendUrl);
             var initialData = await _apiService.GetInitialDataAsync();
             if (initialData != null) await ProcessData(initialData);
             var (success, isPaused) = await _apiService.GetPauseStateAsync();

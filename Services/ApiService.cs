@@ -14,7 +14,9 @@ public class ApiService : IAsyncDisposable
     private string _baseUrl;
     private HttpClient? _httpClient;
     private SocketIOClient.SocketIO? _socket;
-
+    //获取当前URL和连接状态
+    public string CurrentUrl => _baseUrl;
+    public bool IsConnected => _socket?.Connected ?? false;
     public ApiService(string baseUrl = "http://localhost:8989")
     {
         _baseUrl = baseUrl;
