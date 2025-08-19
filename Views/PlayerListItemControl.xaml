@@ -5,10 +5,12 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:views="clr-namespace:StarResonance.DPS.Views"
              xmlns:viewModels="clr-namespace:StarResonance.DPS.ViewModels"
+             xmlns:converters="clr-namespace:StarResonance.DPS.Converters"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=viewModels:PlayerViewModel, IsDesignTimeCreatable=True}"
              d:DesignHeight="Auto" d:DesignWidth="600">
     <UserControl.Resources>
+        <converters:OpacityToBrushConverter x:Key="OpacityToBrushConverter" />
         <Style x:Key="DataCell" TargetType="TextBlock">
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>

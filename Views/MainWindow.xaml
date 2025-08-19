@@ -148,7 +148,7 @@
 
         <Border x:Name="MainBorder"
                 Background="{Binding WindowOpacity, Converter={StaticResource OpacityToBrushConverter}, ConverterParameter='#222222'}"
-                CornerRadius="8" BorderBrush="#555" BorderThickness="1" />
+                CornerRadius="8" BorderBrush="Transparent" BorderThickness="1" />
 
         <Grid Opacity="{Binding FontOpacity}">
             <Grid>
