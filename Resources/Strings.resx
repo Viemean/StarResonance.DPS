@@ -210,4 +210,7 @@
   <data name="SearchMode_ByName" xml:space="preserve">
     <value>昵称</value>
   </data>
+  <data name="Tray_Tooltip" xml:space="preserve">
+    <value>双击显示</value>
+  </data>
 </root>

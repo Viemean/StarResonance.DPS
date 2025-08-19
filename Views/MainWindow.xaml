@@ -6,7 +6,6 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:viewModels="clr-namespace:StarResonance.DPS.ViewModels"
-        xmlns:tb="http://www.hardcodet.net/taskbar"
         xmlns:views="clr-namespace:StarResonance.DPS.Views"
         xmlns:converters="clr-namespace:StarResonance.DPS.Converters"
         mc:Ignorable="d"
@@ -274,18 +273,6 @@
     </Window.Resources>
 
     <Grid>
-        <tb:TaskbarIcon IconSource="/Assets/icon.ico" ToolTipText="星痕共鸣DPS统计 (双击显示)"
-                        TrayMouseDoubleClick="TaskbarIcon_OnTrayMouseDoubleClick">
-            <tb:TaskbarIcon.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="{Binding Localization[RestoreWindow]}" Click="RestoreMenuItem_OnClick" />
-                    <MenuItem Header="{Binding Localization[Minimize]}" Click="MinimizeMenuItem_OnClick" />
-                    <MenuItem Header="{Binding LockMenuHeaderText}" Click="LockMenuItem_OnClick" />
-                    <Separator />
-                    <MenuItem Header="{Binding Localization[Exit]}" Command="{Binding ExitApplicationCommand}" />
-                </ContextMenu>
-            </tb:TaskbarIcon.ContextMenu>
-        </tb:TaskbarIcon>
 
         <Border Background="#222222" CornerRadius="8" BorderBrush="#555" BorderThickness="1"
                 x:Name="MainBorder" Opacity="{Binding WindowOpacity}" />

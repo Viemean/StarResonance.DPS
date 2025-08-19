@@ -211,4 +211,7 @@
   <data name="Placeholder_ByName" xml:space="preserve">
     <value>Enter any part of the name</value>
   </data>
+  <data name="Tray_Tooltip" xml:space="preserve">
+    <value>Double-click-show</value>
+  </data>
 </root>

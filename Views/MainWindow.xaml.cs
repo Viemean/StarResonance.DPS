@@ -6,16 +6,19 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
+using StarResonance.DPS.Services;
+using Microsoft.Extensions.DependencyInjection;
 using StarResonance.DPS.ViewModels;
 
 namespace StarResonance.DPS.Views;
 
 public partial class MainWindow
-{ 
-    private const int GwlExstyle = -20; 
+{
+    private const int GwlExstyle = -20;
     private const int WsExTransparent = 0x20;
 
     private MainViewModel? _viewModel;
+    private TrayIconService? _trayIconService;
 
     public MainWindow()
     {
@@ -69,7 +72,7 @@ public partial class MainWindow
 
         //  获取当前窗口的扩展样式
         var extendedStyle = GetWindowLongPtrW(hwnd, GwlExstyle);
-        
+
         // 这样可以在保留原有样式的基础上，增加鼠标穿透特性
         var newExtendedStyle = extendedStyle.ToInt64() | WsExTransparent;
 
@@ -109,35 +112,10 @@ public partial class MainWindow
 
     private void MainWindow_OnStateChanged(object? sender, EventArgs e)
     {
-        if (WindowState == WindowState.Minimized) Hide();
-    }
-
-    private void TaskbarIcon_OnTrayMouseDoubleClick(object sender, RoutedEventArgs e)
-    {
-        // 仅在窗口最小化或不可见时才执行恢复操作
-        if (WindowState == WindowState.Minimized || !IsVisible) RestoreWindow();
-    }
-
-    private void RestoreMenuItem_OnClick(object sender, RoutedEventArgs e)
-    {
-        RestoreWindow();
-    }
-
-    private void MinimizeMenuItem_OnClick(object sender, RoutedEventArgs e)
-    {
-        WindowState = WindowState.Minimized;
-    }
-
-    private void LockMenuItem_OnClick(object sender, RoutedEventArgs e)
-    {
-        _viewModel!.ToggleLock();
-    }
-
-    private void RestoreWindow()
-    {
-        Show();
-        WindowState = WindowState.Normal;
-        Activate();
+        if (WindowState == WindowState.Minimized)
+        {
+            Hide();
+        }
     }
 
     private async void OnMainWindowLoaded(object sender, RoutedEventArgs e)
@@ -148,6 +126,9 @@ public partial class MainWindow
             // 订阅ViewModel的属性变更通知，这是连接视图逻辑和视图模型状态的关键
             _viewModel.PropertyChanged += ViewModel_PropertyChanged;
             await _viewModel.InitializeAsync();
+            // 初始化托盘图标服务 !!!
+            _trayIconService = ((App)Application.Current).Services.GetService<TrayIconService>();
+            _trayIconService?.Initialize();
         }
         catch (Exception ex)
         {
@@ -159,7 +140,8 @@ public partial class MainWindow
     private async void OnMainWindowClosing(object? sender, CancelEventArgs e)
     {
         try
-        {
+        {   //销毁托盘图标
+            _trayIconService?.Dispose();
             if (_viewModel == null) return;
             // 在窗口关闭时取消订阅，防止内存泄漏
             _viewModel.PropertyChanged -= ViewModel_PropertyChanged;

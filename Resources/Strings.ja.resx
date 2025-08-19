@@ -210,4 +210,7 @@
   <data name="Placeholder_ByName" xml:space="preserve">
     <value>名前の一部を入力</value>
   </data>
+  <data name="Tray_Tooltip" xml:space="preserve">
+    <value>ダブルクリックで表示</value>
+  </data>
 </root>
