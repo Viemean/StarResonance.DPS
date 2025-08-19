@@ -1,8 +1,7 @@
 ﻿using System.Globalization;
 using System.Reflection;
 using System.Resources;
-using CommunityToolkit.Mvvm.ComponentModel;
-
+using StarResonance.DPS.ViewModels;
 namespace StarResonance.DPS.Services;
 
 public class LocalizationService : ObservableObject

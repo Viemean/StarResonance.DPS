@@ -97,12 +97,12 @@ public partial class MainWindow
         _ = SetWindowLongPtrW(hwnd, GwlExstyle, new IntPtr(newExtendedStyle));
     }
 
-    private async void Player_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    private void Player_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         try
         {
             if (sender is ListViewItem { DataContext: PlayerViewModel player })
-                await _viewModel!.TogglePlayerExpansionCommand.ExecuteAsync(player);
+                _viewModel!.TogglePlayerExpansionCommand.Execute(player);
         }
         catch (Exception ex)
         {

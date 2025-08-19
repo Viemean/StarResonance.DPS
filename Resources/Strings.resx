@@ -45,10 +45,7 @@
     <data name="Exit" xml:space="preserve">
     <value>退出</value>
   </data>
-    <data name="ExportCsv" xml:space="preserve">
-    <value>导出为CSV文件</value>
-  </data>
-    <data name="FiveMinutes" xml:space="preserve">
+  <data name="FiveMinutes" xml:space="preserve">
     <value>5 分钟</value>
   </data>
     <data name="FontSize" xml:space="preserve">

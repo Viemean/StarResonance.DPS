@@ -2,8 +2,7 @@
 using System.Text;
 using System.Windows;
 using System.Windows.Media;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
+using System.Windows.Input;
 using StarResonance.DPS.Models;
 using StarResonance.DPS.Services;
 
@@ -12,55 +11,113 @@ namespace StarResonance.DPS.ViewModels;
 /// <summary>
 ///     表示单个玩家数据及其在UI中状态的视图模型。
 /// </summary>
-/// <param name="uid">玩家的唯一ID。</param>
-/// <param name="localizationService">用于UI文本本地化的服务。</param>
-/// <param name="notificationService">用于显示通知的服务。</param>
-public partial class PlayerViewModel(
-    long uid,
-    LocalizationService localizationService,
-    INotificationService notificationService) : ObservableObject
+public class PlayerViewModel : ObservableObject
 {
-    // 缓存字段
+    // --- 服务字段 ---
+    private readonly LocalizationService _localizationService;
+    private readonly INotificationService _notificationService;
+    
+    // --- 缓存字段 ---
     private string? _cachedCopyableString;
     private string? _cachedToolTipText;
+    
+    // --- 手动实现的属性 ---
+    private string? _accurateCritDamageText;
+    public string? AccurateCritDamageText { get => _accurateCritDamageText; set => SetProperty(ref _accurateCritDamageText, value); }
+    
+    private string? _accurateCritHealingText;
+    public string? AccurateCritHealingText { get => _accurateCritHealingText; set => SetProperty(ref _accurateCritHealingText, value); }
+    
+    private string? _damageDisplayPercentage;
+    public string? DamageDisplayPercentage { get => _damageDisplayPercentage; set => SetProperty(ref _damageDisplayPercentage, value); }
 
-    [ObservableProperty] private string? _accurateCritDamageText;
-    [ObservableProperty] private string? _accurateCritHealingText;
-    [ObservableProperty] private string? _damageDisplayPercentage;
     private UserData? _data;
-    [ObservableProperty] private string? _dpsDisplayPercentage;
+
+    private string? _dpsDisplayPercentage;
+    public string? DpsDisplayPercentage { get => _dpsDisplayPercentage;
+        private set => SetProperty(ref _dpsDisplayPercentage, value); }
+
     private string _fightDuration = "0:00";
 
-    [ObservableProperty] private int _fightPoint;
-
-    [ObservableProperty] private string? _healingDisplayPercentage;
-
-    [ObservableProperty] private string? _hpsDisplayPercentage;
+    private int _fightPoint;
+    public int FightPoint { get => _fightPoint; set => SetProperty(ref _fightPoint, value); }
+    
+    private string? _healingDisplayPercentage;
+    public string? HealingDisplayPercentage { get => _healingDisplayPercentage; set => SetProperty(ref _healingDisplayPercentage, value); }
+    
+    private string? _hpsDisplayPercentage;
+    public string? HpsDisplayPercentage { get => _hpsDisplayPercentage;
+        private set => SetProperty(ref _hpsDisplayPercentage, value); }
+    
     private bool _isExpanded;
+    
+    private bool _isIdle;
+    public bool IsIdle { get => _isIdle; set => SetProperty(ref _isIdle, value); }
+    
+    private bool _isMatchInFilter = true;
+    public bool IsMatchInFilter { get => _isMatchInFilter; set => SetProperty(ref _isMatchInFilter, value); }
+    
+    private bool _isLoadingSkills;
+    public bool IsLoadingSkills { get => _isLoadingSkills; set => SetProperty(ref _isLoadingSkills, value); }
+    
+    private string _name = null!;
+    public string Name { get => _name;
+        private set => SetProperty(ref _name, value); }
+    
+    private Brush _nameColor = Brushes.White;
+    public Brush NameColor { get => _nameColor; set => SetProperty(ref _nameColor, value); }
+    
+    private string _profession = null!;
+    public string Profession { get => _profession; set => SetProperty(ref _profession, value); }
+    
+    private int _rank;
+    public int Rank { get => _rank;
+        set => SetProperty(ref _rank, value); }
+    
+    private bool _showSeparatorAfter;
+    public bool ShowSeparatorAfter { get => _showSeparatorAfter; set => SetProperty(ref _showSeparatorAfter, value); }
 
-    [ObservableProperty] private bool _isIdle;
-    [ObservableProperty] private bool _isMatchInFilter = true;
+    private double _takenDamage;
+    public double TakenDamage { get => _takenDamage; set => SetProperty(ref _takenDamage, value); }
 
+    private string? _takenDamageDisplayPercentage;
+    public string? TakenDamageDisplayPercentage { get => _takenDamageDisplayPercentage; set => SetProperty(ref _takenDamageDisplayPercentage, value); }
 
-    [ObservableProperty] private bool _isLoadingSkills;
-    [ObservableProperty] private string _name = null!;
-    [ObservableProperty] private Brush _nameColor = Brushes.White;
-    [ObservableProperty] private string _profession = null!;
-    [ObservableProperty] private int _rank;
+    private double _totalDamage;
+    public double TotalDamage { get => _totalDamage; set => SetProperty(ref _totalDamage, value); }
 
-    [ObservableProperty] private bool _showSeparatorAfter;
-    [ObservableProperty] private double _takenDamage;
+    private double _totalDps;
+    public double TotalDps { get => _totalDps; set => SetProperty(ref _totalDps, value); }
 
-    [ObservableProperty] private string? _takenDamageDisplayPercentage;
-    [ObservableProperty] private double _totalDamage;
-    [ObservableProperty] private double _totalDps;
-    [ObservableProperty] private double _totalHealing;
-    [ObservableProperty] private double _totalHps;
+    private double _totalHealing;
+    public double TotalHealing { get => _totalHealing; set => SetProperty(ref _totalHealing, value); }
+
+    private double _totalHps;
+    public double TotalHps { get => _totalHps; set => SetProperty(ref _totalHps, value); }
     
     public double DamagePercent { get; set; }
     public double HealingPercent { get; set; }
     public int MaxHp { get; private set; }
-
+    
+    public ICommand CopyDataCommand { get; }
+    
+    /// <summary>
+    ///     表示单个玩家数据及其在UI中状态的视图模型。
+    /// </summary>
+    /// <param name="uid">玩家的唯一ID。</param>
+    /// <param name="localizationService">用于UI文本本地化的服务。</param>
+    /// <param name="notificationService">用于显示通知的服务。</param>
+    public PlayerViewModel(
+        long uid,
+        LocalizationService localizationService,
+        INotificationService notificationService)
+    {
+        this.Uid = uid;
+        this._localizationService = localizationService;
+        this._notificationService = notificationService;
+        
+        CopyDataCommand = new RelayCommand(_ => CopyData());
+    }
 
 
     /// <summary>
@@ -71,17 +128,17 @@ public partial class PlayerViewModel(
     /// <param name="localizationService">本地化服务实例。</param>
     /// <param name="notificationService">通知服务实例。</param>
     public PlayerViewModel(PlayerSnapshot snapshot, string fightDuration, LocalizationService localizationService,
-        INotificationService notificationService)
+            INotificationService notificationService)
         // 从 SkillData 中安全地获取 Uid，如果不存在则默认为0
         : this(snapshot.SkillData?.Uid ?? 0, localizationService, notificationService)
     {
         Update(snapshot.UserData, 0, fightDuration);
         RawSkillData = snapshot.SkillData;
-        
+
         // 从快照中恢复百分比数据
         DamagePercent = snapshot.DamagePercent;
         HealingPercent = snapshot.HealingPercent;
-        
+
         //直接访问 RawSkillData.Skills
         if (RawSkillData?.Skills == null) return;
         var playerTotalValue = TotalDamage + TotalHealing;
@@ -94,12 +151,11 @@ public partial class PlayerViewModel(
         // 直接访问 RawSkillData.Skills
         CalculateAccurateCritDamage(RawSkillData.Skills);
         CalculateAccurateCritHealing(RawSkillData.Skills);
-        
+
         // 在快照模式下预先计算并缓存
         _cachedToolTipText = BuildToolTipText();
         _cachedCopyableString = BuildCopyableString();
         if (NameColor.CanFreeze) NameColor.Freeze();
-        
     }
 
     /// <summary>
@@ -129,7 +185,7 @@ public partial class PlayerViewModel(
 
     // 用于技能展开区域的可见性属性
     public Visibility ExpandedVisibility => IsExpanded ? Visibility.Visible : Visibility.Collapsed;
-    
+
     public bool HasFewSkills => Skills.Count <= 3;
 
     /// <summary>
@@ -147,8 +203,7 @@ public partial class PlayerViewModel(
     public DateTime LastActiveTime { get; set; } = DateTime.UtcNow;
     public ObservableCollection<SkillViewModel> Skills { get; } = new();
 
-    public long Uid { get; } = uid;
-
+    public long Uid { get; } 
     public string TotalDamageText => TotalDamage > 0 ? MainViewModel.FormatNumber(TotalDamage) : string.Empty;
     public string TotalHealingText => TotalHealing > 0 ? MainViewModel.FormatNumber(TotalHealing) : string.Empty;
     public string TotalDpsText => TotalDps > 0 ? MainViewModel.FormatNumber(TotalDps) : string.Empty;
@@ -163,41 +218,41 @@ public partial class PlayerViewModel(
 
     //  ToolTipText get访问器
     public string ToolTipText => _cachedToolTipText ?? BuildToolTipText();
-    
+
     // 构建ToolTipText的私有方法
     private string BuildToolTipText()
     {
         if (_data == null) return string.Empty;
 
         var sb = new StringBuilder();
-        var unknownText = localizationService["Unknown"] ?? "未知";
+        var unknownText = _localizationService["Unknown"] ?? "未知";
 
         // 基础信息
-        sb.AppendLine($"{localizationService["Tooltip_PlayerId"] ?? "角色ID: "}{Uid}");
-        sb.AppendLine($"{localizationService["Tooltip_PlayerName"] ?? "角色昵称: "}{Name}");
+        sb.AppendLine($"{_localizationService["Tooltip_PlayerId"] ?? "角色ID: "}{Uid}");
+        sb.AppendLine($"{_localizationService["Tooltip_PlayerName"] ?? "角色昵称: "}{Name}");
 
         //静态显示角色等级、臂章等级和最大生命值
         var attr = RawSkillData?.Attr;
 
         var levelText = attr is { Level: > 0 } ? attr.Level.ToString() : unknownText;
-        sb.AppendLine($"{(localizationService["Tooltip_CharacterLevel"] ?? "角色等级:").TrimEnd(':')} {levelText}");
+        sb.AppendLine($"{(_localizationService["Tooltip_CharacterLevel"] ?? "角色等级:").TrimEnd(':')} {levelText}");
 
         var rankLevelText = attr is { RankLevel: > 0 } ? attr.RankLevel.ToString() : unknownText;
-        sb.AppendLine($"{(localizationService["Tooltip_RankLevel"] ?? "臂章等级:").TrimEnd(':')} {rankLevelText}");
+        sb.AppendLine($"{(_localizationService["Tooltip_RankLevel"] ?? "臂章等级:").TrimEnd(':')} {rankLevelText}");
 
         var maxHpText = MaxHp > 0 ? MaxHp.ToString("N0") : unknownText;
-        sb.AppendLine($"{(localizationService["Tooltip_MaxHP"] ?? "最大生命值:").TrimEnd(':')} {maxHpText}");
+        sb.AppendLine($"{(_localizationService["Tooltip_MaxHP"] ?? "最大生命值:").TrimEnd(':')} {maxHpText}");
 
         // 评分和职业
-        sb.AppendLine($"{localizationService["Tooltip_Score"] ?? "评分: "}{FightPoint}");
-        sb.AppendLine($"{localizationService["Tooltip_Profession"] ?? "职业: "}{Profession}");
+        sb.AppendLine($"{_localizationService["Tooltip_Score"] ?? "评分: "}{FightPoint}");
+        sb.AppendLine($"{_localizationService["Tooltip_Profession"] ?? "职业: "}{Profession}");
 
         // 暴击率和幸运率
         var critRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Critical / _data.TotalCount.Total : 0;
-        sb.AppendLine($"{localizationService["Tooltip_CritRate"] ?? "暴击率: "}{critRate:P1}");
+        sb.AppendLine($"{_localizationService["Tooltip_CritRate"] ?? "暴击率: "}{critRate:P1}");
 
         var luckyRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Lucky / _data.TotalCount.Total : 0;
-        sb.AppendLine($"{localizationService["Tooltip_LuckyRate"] ?? "幸运率: "}{luckyRate:P1}");
+        sb.AppendLine($"{_localizationService["Tooltip_LuckyRate"] ?? "幸运率: "}{luckyRate:P1}");
 
         return sb.ToString().TrimEnd();
     }
@@ -222,20 +277,20 @@ public partial class PlayerViewModel(
         var critRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Critical / _data.TotalCount.Total : 0;
         var luckyRate = _data.TotalCount.Total > 0 ? (double)_data.TotalCount.Lucky / _data.TotalCount.Total : 0;
 
-        var rankLabel = localizationService["Rank"] ?? "#";
-        var idLabel = (localizationService["Tooltip_PlayerId"] ?? "角色ID: ").TrimEnd(':', ' '); // 复用Tooltip的翻译
-        var nameLabel = localizationService["CharacterName"] ?? "Name";
-        var scoreLabel = localizationService["Score"] ?? "Score";
-        var professionLabel = localizationService["Profession"] ?? "Profession";
-        var totalDamageLabel = localizationService["TotalDamage"] ?? "Damage";
-        var totalHealingLabel = localizationService["TotalHealing"] ?? "Healing";
-        var dpsLabel = localizationService["TotalDPS"] ?? "DPS";
-        var hpsLabel = localizationService["TotalHPS"] ?? "HPS";
-        var takenDamageLabel = localizationService["TakenDamage"] ?? "DmgTaken";
-        var critRateLabel = (localizationService["Tooltip_CritRate"] ?? "Crit Rate: ").TrimEnd(':', ' ');
-        var luckyRateLabel = (localizationService["Tooltip_LuckyRate"] ?? "Lucky Rate: ").TrimEnd(':', ' ');
-        var durationLabel = localizationService["FightDuration"] ?? "Duration";
-        
+        var rankLabel = _localizationService["Rank"] ?? "#";
+        var idLabel = (_localizationService["Tooltip_PlayerId"] ?? "角色ID: ").TrimEnd(':', ' '); // 复用Tooltip的翻译
+        var nameLabel = _localizationService["CharacterName"] ?? "Name";
+        var scoreLabel = _localizationService["Score"] ?? "Score";
+        var professionLabel = _localizationService["Profession"] ?? "Profession";
+        var totalDamageLabel = _localizationService["TotalDamage"] ?? "Damage";
+        var totalHealingLabel = _localizationService["TotalHealing"] ?? "Healing";
+        var dpsLabel = _localizationService["TotalDPS"] ?? "DPS";
+        var hpsLabel = _localizationService["TotalHPS"] ?? "HPS";
+        var takenDamageLabel = _localizationService["TakenDamage"] ?? "DmgTaken";
+        var critRateLabel = (_localizationService["Tooltip_CritRate"] ?? "Crit Rate: ").TrimEnd(':', ' ');
+        var luckyRateLabel = (_localizationService["Tooltip_LuckyRate"] ?? "Lucky Rate: ").TrimEnd(':', ' ');
+        var durationLabel = _localizationService["FightDuration"] ?? "Duration";
+
         // 在伤害和治疗后添加百分比
         var damageString = TotalDamage > 0 ? $"{TotalDamage:F0} ({DamagePercent:P1})" : $"{TotalDamage:F0}";
         var healingString = TotalHealing > 0 ? $"{TotalHealing:F0} ({HealingPercent:P1})" : $"{TotalHealing:F0}";
@@ -255,14 +310,14 @@ public partial class PlayerViewModel(
                $"{luckyRateLabel}: {luckyRate:P1}, " +
                $"{durationLabel}: {_fightDuration}";
     }
-    
+
     public void NotifyTooltipUpdate()
     {
         // 在实时模式下，清除缓存以强制重新计算
         _cachedToolTipText = null;
         OnPropertyChanged(nameof(ToolTipText));
     }
-    
+
     public void NotifySkillsChanged()
     {
         OnPropertyChanged(nameof(Skills));
@@ -293,9 +348,9 @@ public partial class PlayerViewModel(
                 select (avgCrit / avgNormal, skill.TotalDamage));
 
         // 基于所有有效技能的数据，进行加权平均计算
-        if (multipliers.Count == 0) return localizationService["NotApplicable"] ?? "数据不足";
+        if (multipliers.Count == 0) return _localizationService["NotApplicable"] ?? "数据不足";
         var totalWeight = multipliers.Sum(t => t.weight);
-        if (!(totalWeight > 0)) return localizationService["NotApplicable"] ?? "数据不足";
+        if (!(totalWeight > 0)) return _localizationService["NotApplicable"] ?? "数据不足";
         {
             var totalWeightedMultiplier = multipliers.Sum(t => t.multiplier * t.weight);
             var weightedAvgMultiplier = totalWeightedMultiplier / totalWeight;
@@ -326,17 +381,16 @@ public partial class PlayerViewModel(
         OnPropertyChanged(nameof(ToolTipText));
     }
 
-    [RelayCommand]
     private void CopyData()
     {
         try
         {
             Clipboard.SetText(CopyableString);
-            notificationService.ShowNotification(localizationService["CopySuccess"] ?? "复制成功!");
+            _notificationService.ShowNotification(_localizationService["CopySuccess"] ?? "复制成功!");
         }
         catch
         {
-            notificationService.ShowNotification(localizationService["CopyFailed"] ?? "复制失败: 无法访问剪贴板");
+            _notificationService.ShowNotification(_localizationService["CopyFailed"] ?? "复制失败: 无法访问剪贴板");
         }
     }
 
@@ -373,7 +427,7 @@ public partial class PlayerViewModel(
             oldTotalCount != data.TotalCount)
         {
             // 在实时模式下，清除缓存以强制重新计算
-             _cachedToolTipText = null;
+            _cachedToolTipText = null;
             _cachedCopyableString = null;
             OnPropertyChanged(nameof(ToolTipText));
         }
@@ -430,6 +484,7 @@ public partial class PlayerViewModel(
         OnPropertyChanged(nameof(TotalHpsTooltip));
         OnPropertyChanged(nameof(TakenDamageTooltip));
     }
+
     /// <summary>
     /// 当语言变更时，使缓存的字符串（如Tooltip和复制文本）失效，以便下次访问时重新生成。
     /// </summary>

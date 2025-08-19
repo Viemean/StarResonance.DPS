@@ -1,10 +1,9 @@
 ﻿using System.Windows.Media;
-using CommunityToolkit.Mvvm.ComponentModel;
 using StarResonance.DPS.Models;
 
 namespace StarResonance.DPS.ViewModels;
 
-public class SkillViewModel : ObservableObject
+public class SkillViewModel : ObservableObject 
 {
     // 使用静态只读画刷避免重复内存分配 ---
     private static readonly Brush FireBrush = Brushes.OrangeRed;

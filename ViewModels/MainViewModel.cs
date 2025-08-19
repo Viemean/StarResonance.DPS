@@ -9,9 +9,8 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Input;
 using System.Windows.Threading;
-using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using StarResonance.DPS.Models;
 using StarResonance.DPS.Services;
@@ -49,7 +48,7 @@ public class AppState
 /// <summary>
 ///     主窗口的视图模型，负责处理所有UI逻辑、数据状态和与服务的交互。
 /// </summary>
-public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotificationService
+public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationService
 {
     //闲置时长
     private const int IdleTimeoutSeconds = 30;
@@ -77,6 +76,17 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
 
     private readonly DispatcherTimer _uiUpdateTimer;
     private readonly DispatcherTimer _searchDebounceTimer; // 防抖计时器
+    private TimeSpan _countdownTimeLeft;
+    private DispatcherTimer? _countdownTimer;
+    private int _elapsedSeconds;
+    private PlayerViewModel? _expandedPlayer;
+    private bool _isFightActive;
+    
+    private bool _isSortingPaused;
+
+    private DateTime _lastCombatActivityTime;
+    private ApiResponse? _latestReceivedData;
+    private ApiResponse? _liveDataCacheWhileInSnapshot;
 
     public enum SearchMode
     {
@@ -91,96 +101,465 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         public string DisplayName { get; init; } = string.Empty;
     }
 
-    [ObservableProperty] private string _backendUrl = "ws://localhost:8989";
+    private string _backendUrl = "ws://localhost:8989";
 
-    [ObservableProperty] private Brush _connectionStatusColor = Brushes.Orange;
-    [ObservableProperty] private string _connectionStatusText = "正在连接...";
-    [ObservableProperty] private string _countdownText = "倒计时";
-    private TimeSpan _countdownTimeLeft;
-    private DispatcherTimer? _countdownTimer;
-    [ObservableProperty] private string _currentTime = DateTime.Now.ToLongTimeString();
-    [ObservableProperty] private string _customCountdownMinutes = "10";
-    private int _elapsedSeconds;
-    private PlayerViewModel? _expandedPlayer;
-    [ObservableProperty] private string _fightDurationText = "0:00";
-    [ObservableProperty] private double _fontSize = 14;
-    [ObservableProperty] private bool _isCountdownOptionsPopupOpen;
+    public string BackendUrl
+    {
+        get => _backendUrl;
+        set => SetProperty(ref _backendUrl, value);
+    }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CountdownRunningVisibility))]
-    [NotifyPropertyChangedFor(nameof(RealtimeModeVisibility))]
-    [NotifyPropertyChangedFor(nameof(FightDurationVisibility))]
-    // 倒计时按钮的可见性也受此影响
+    private Brush _connectionStatusColor = Brushes.Orange;
+
+    public Brush ConnectionStatusColor
+    {
+        get => _connectionStatusColor;
+        private set => SetProperty(ref _connectionStatusColor, value);
+    }
+
+    private string _connectionStatusText = "正在连接...";
+
+    public string ConnectionStatusText
+    {
+        get => _connectionStatusText;
+        private set => SetProperty(ref _connectionStatusText, value);
+    }
+
+    private string _countdownText = "倒计时";
+
+    public string CountdownText
+    {
+        get => _countdownText;
+        private set => SetProperty(ref _countdownText, value);
+    }
+
+    private string _currentTime = DateTime.Now.ToLongTimeString();
+
+    public string CurrentTime
+    {
+        get => _currentTime;
+        private set => SetProperty(ref _currentTime, value);
+    }
+
+    private string _customCountdownMinutes = "10";
+
+    public string CustomCountdownMinutes 
+    { 
+        get => _customCountdownMinutes;
+        set
+        {
+            if (!SetProperty(ref _customCountdownMinutes, value)) return;
+            if (!double.TryParse(value, out var minutes)) return;
+            if (!(minutes > 60)) return;
+            // 更简单的方式是直接在 set 之前校验，但为了保持原逻辑，我们这样做：
+            _customCountdownMinutes = "60";
+            OnPropertyChanged(); // 再次通知UI更新为 "60"
+        } 
+    }
+
+    private string _fightDurationText = "0:00";
+
+    public string FightDurationText
+    {
+        get => _fightDurationText;
+        private set => SetProperty(ref _fightDurationText, value);
+    }
+
+    private double _fontSize = 14;
+
+    public double FontSize
+    {
+        get => _fontSize;
+        set => SetProperty(ref _fontSize, value);
+    }
+
+    private bool _isCountdownOptionsPopupOpen;
+
+    public bool IsCountdownOptionsPopupOpen
+    {
+        get => _isCountdownOptionsPopupOpen;
+        set => SetProperty(ref _isCountdownOptionsPopupOpen, value);
+    }
+
     private bool _isCountdownRunning;
 
-    [ObservableProperty] private bool _isCustomCountdownPopupOpen;
-    private bool _isFightActive;
+    private bool IsCountdownRunning
+    {
+        get => _isCountdownRunning;
+        set
+        {
+            if (SetProperty(ref _isCountdownRunning, value))
+            {
+                OnPropertyChanged(nameof(CountdownRunningVisibility));
+                OnPropertyChanged(nameof(RealtimeModeVisibility));
+                OnPropertyChanged(nameof(FightDurationVisibility));
+            }
+        }
+    }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(SnapshotModeVisibility))]
-    [NotifyPropertyChangedFor(nameof(RealtimeModeVisibility))]
+    private bool _isCustomCountdownPopupOpen;
+
+    public bool IsCustomCountdownPopupOpen
+    {
+        get => _isCustomCountdownPopupOpen;
+        set => SetProperty(ref _isCustomCountdownPopupOpen, value);
+    }
+
     private bool _isInSnapshotMode;
 
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(IsHitTestVisible))]
+    private bool IsInSnapshotMode
+    {
+        get => _isInSnapshotMode;
+        set
+        {
+            if (SetProperty(ref _isInSnapshotMode, value))
+            {
+                OnPropertyChanged(nameof(SnapshotModeVisibility));
+                OnPropertyChanged(nameof(RealtimeModeVisibility));
+            }
+        }
+    }
+
     private bool _isLocked;
 
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(NotificationVisibility))]
+    public bool IsLocked
+    {
+        get => _isLocked;
+        set
+        {
+            if (!SetProperty(ref _isLocked, value)) return;
+            LockMenuHeaderText = value ? Localization["Unlock"] ?? "解锁" : Localization["Lock"] ?? "锁定";
+            LockIconContent = value ? "🔒" : "🔓";
+            if (value) ShowNotification("可通过托盘图标右键解锁");
+            OnPropertyChanged(nameof(IsHitTestVisible));
+        }
+    }
+
     private bool _isNotificationVisible;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PauseStatusVisibility))]
-    [NotifyPropertyChangedFor(nameof(FightDurationVisibility))]
+    private bool IsNotificationVisible
+    {
+        get => _isNotificationVisible;
+        set
+        {
+            if (SetProperty(ref _isNotificationVisible, value))
+            {
+                OnPropertyChanged(nameof(NotificationVisibility));
+            }
+        }
+    }
+
     private bool _isPaused;
 
-    [ObservableProperty] private bool _isPauseOnExitEnabled = true;
+    private bool IsPaused
+    {
+        get => _isPaused;
+        set
+        {
+            if (!SetProperty(ref _isPaused, value)) return;
+            PauseStatusColor = value ? Brushes.Red : Brushes.LimeGreen;
+            PauseButtonText = value ? Localization["Resume"] ?? "恢复" : Localization["Pause"] ?? "暂停";
+            OnPropertyChanged(nameof(PauseStatusVisibility));
+            OnPropertyChanged(nameof(FightDurationVisibility));
+        }
+    }
 
-    //控制进入快照时是否暂停服务的选项，默认为 true
-    [ObservableProperty] private bool _isPauseOnSnapshotEnabled = true;
+    private bool _isPauseOnExitEnabled = true;
 
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(SettingsVisibility))]
+    public bool IsPauseOnExitEnabled
+    {
+        get => _isPauseOnExitEnabled;
+        set => SetProperty(ref _isPauseOnExitEnabled, value);
+    }
+
+    private bool _isPauseOnSnapshotEnabled = true;
+
+    public bool IsPauseOnSnapshotEnabled
+    {
+        get => _isPauseOnSnapshotEnabled;
+        set => SetProperty(ref _isPauseOnSnapshotEnabled, value);
+    }
+
     private bool _isSettingsVisible;
 
-    [ObservableProperty] private bool _isSmartIdleModeEnabled;
+    public bool IsSettingsVisible
+    {
+        get => _isSettingsVisible;
+        set
+        {
+            if (SetProperty(ref _isSettingsVisible, value))
+            {
+                OnPropertyChanged(nameof(SettingsVisibility));
+            }
+        }
+    }
 
-    private bool _isSortingPaused;
+    private bool _isSmartIdleModeEnabled;
 
-    private DateTime _lastCombatActivityTime;
-    private ApiResponse? _latestReceivedData;
-    private ApiResponse? _liveDataCacheWhileInSnapshot; // 用于在快照模式下缓存实时数据
+    public bool IsSmartIdleModeEnabled
+    {
+        get => _isSmartIdleModeEnabled;
+        set
+        {
+            if (!SetProperty(ref _isSmartIdleModeEnabled, value)) return;
+            ApplySorting();
+            RefreshAndSortPlayerList();
+        }
+    }
 
-    [ObservableProperty] private string _loadedSnapshotFileName = "";
-    [ObservableProperty] private string _lockIconContent = "🔓";
-    [ObservableProperty] private string _lockMenuHeaderText = "锁定";
-    [ObservableProperty] private string _notificationText = "";
-    [ObservableProperty] private string _pauseButtonText = "暂停";
-    [ObservableProperty] private Brush _pauseStatusColor = Brushes.LimeGreen;
-    [ObservableProperty] private ObservableCollection<PlayerViewModel> _players = [];
-    [ObservableProperty] private ICollectionView _playersView;
-    [ObservableProperty] private string _searchFilterText = string.Empty; // 搜索框文本
+    private string _loadedSnapshotFileName = "";
 
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(SearchPlaceholderText))]
+    public string LoadedSnapshotFileName
+    {
+        get => _loadedSnapshotFileName;
+        private set => SetProperty(ref _loadedSnapshotFileName, value);
+    }
+
+    private string _lockIconContent = "🔓";
+
+    public string LockIconContent
+    {
+        get => _lockIconContent;
+        private set => SetProperty(ref _lockIconContent, value);
+    }
+
+    private string _lockMenuHeaderText = "锁定";
+
+    public string LockMenuHeaderText
+    {
+        get => _lockMenuHeaderText;
+        private set => SetProperty(ref _lockMenuHeaderText, value);
+    }
+
+    private string _notificationText = "";
+
+    public string NotificationText
+    {
+        get => _notificationText;
+        private set => SetProperty(ref _notificationText, value);
+    }
+
+    private string _pauseButtonText = "暂停";
+
+    public string PauseButtonText
+    {
+        get => _pauseButtonText;
+        private set => SetProperty(ref _pauseButtonText, value);
+    }
+
+    private Brush _pauseStatusColor = Brushes.LimeGreen;
+
+    public Brush PauseStatusColor
+    {
+        get => _pauseStatusColor;
+        private set => SetProperty(ref _pauseStatusColor, value);
+    }
+
+    private ObservableCollection<PlayerViewModel> _players = [];
+
+    private ObservableCollection<PlayerViewModel> Players
+    {
+        get => _players;
+        set
+        {
+            if (SetProperty(ref _players, value))
+            {
+                PlayersView = CollectionViewSource.GetDefaultView(value);
+            }
+        }
+    }
+
+    private ICollectionView _playersView;
+
+    public ICollectionView PlayersView
+    {
+        get => _playersView;
+        private set => SetProperty(ref _playersView, value);
+    }
+
+    private string _searchFilterText = string.Empty;
+
+    public string SearchFilterText
+    {
+        get => _searchFilterText;
+        set
+        {
+            if (!SetProperty(ref _searchFilterText, value)) return;
+            _searchDebounceTimer.Stop();
+            _searchDebounceTimer.Start();
+        }
+    }
+
     private SearchModeItem? _selectedSearchModeItem;
 
-    [ObservableProperty] private FontFamily _selectedFontFamily;
-    [ObservableProperty] private string? _sortColumn;
-    [ObservableProperty] private ListSortDirection _sortDirection = ListSortDirection.Descending;
-    [ObservableProperty] private string? _takenDamageSumTooltip;
-    [ObservableProperty] private string? _totalDamageSumTooltip;
-    [ObservableProperty] private string? _totalDpsSumTooltip;
-    [ObservableProperty] private string? _totalHealingSumTooltip;
-    [ObservableProperty] private string? _totalHpsSumTooltip;
-    [ObservableProperty] private int _uiUpdateInterval = 500;
-    [ObservableProperty] private double _windowHeight = 350;
-    [ObservableProperty] private double _windowLeft = 100;
+    public SearchModeItem? SelectedSearchModeItem
+    {
+        get => _selectedSearchModeItem;
+        set
+        {
+            if (!SetProperty(ref _selectedSearchModeItem, value)) return;
+            ApplyFilter();
+            OnPropertyChanged(nameof(SearchPlaceholderText));
+        }
+    }
 
-    [ObservableProperty] [NotifyPropertyChangedFor(nameof(FontOpacity))]
+    private FontFamily _selectedFontFamily;
+
+    public FontFamily SelectedFontFamily
+    {
+        get => _selectedFontFamily;
+        set => SetProperty(ref _selectedFontFamily, value);
+    }
+
+    private string? _sortColumn;
+
+    public string? SortColumn
+    {
+        get => _sortColumn;
+        set => SetProperty(ref _sortColumn, value);
+    }
+
+    private ListSortDirection _sortDirection = ListSortDirection.Descending;
+
+    public ListSortDirection SortDirection
+    {
+        get => _sortDirection;
+        private set => SetProperty(ref _sortDirection, value);
+    }
+
+    private string? _takenDamageSumTooltip;
+
+    public string? TakenDamageSumTooltip
+    {
+        get => _takenDamageSumTooltip;
+        private set => SetProperty(ref _takenDamageSumTooltip, value);
+    }
+
+    private string? _totalDamageSumTooltip;
+
+    public string? TotalDamageSumTooltip
+    {
+        get => _totalDamageSumTooltip;
+        private set => SetProperty(ref _totalDamageSumTooltip, value);
+    }
+
+    private string? _totalDpsSumTooltip;
+
+    public string? TotalDpsSumTooltip
+    {
+        get => _totalDpsSumTooltip;
+        private set => SetProperty(ref _totalDpsSumTooltip, value);
+    }
+
+    private string? _totalHealingSumTooltip;
+
+    public string? TotalHealingSumTooltip
+    {
+        get => _totalHealingSumTooltip;
+        private set => SetProperty(ref _totalHealingSumTooltip, value);
+    }
+
+    private string? _totalHpsSumTooltip;
+
+    public string? TotalHpsSumTooltip
+    {
+        get => _totalHpsSumTooltip;
+        private set => SetProperty(ref _totalHpsSumTooltip, value);
+    }
+
+    private int _uiUpdateInterval = 500;
+
+    public int UiUpdateInterval
+    {
+        get => _uiUpdateInterval;
+        set
+        {
+            if (SetProperty(ref _uiUpdateInterval, value))
+            {
+                UpdateTimerInterval();
+            }
+        }
+    }
+
+    private double _windowHeight = 350;
+
+    public double WindowHeight
+    {
+        get => _windowHeight;
+        set => SetProperty(ref _windowHeight, value);
+    }
+
+    private double _windowLeft = 100;
+
+    public double WindowLeft
+    {
+        get => _windowLeft;
+        set => SetProperty(ref _windowLeft, value);
+    }
+
     private double _windowOpacity = 0.85;
 
-    [ObservableProperty] private double _windowTop = 100;
-    [ObservableProperty] private double _windowWidth = 700;
+    public double WindowOpacity
+    {
+        get => _windowOpacity;
+        set
+        {
+            if (SetProperty(ref _windowOpacity, value))
+            {
+                OnPropertyChanged(nameof(FontOpacity));
+            }
+        }
+    }
+
+    private double _windowTop = 100;
+
+    public double WindowTop
+    {
+        get => _windowTop;
+        set => SetProperty(ref _windowTop, value);
+    }
+
+    private double _windowWidth = 700;
+
+    public double WindowWidth
+    {
+        get => _windowWidth;
+        set => SetProperty(ref _windowWidth, value);
+    }
+
+    // --- 手动实现的命令 ---
+    public ICommand OpenCountdownOptionsCommand { get; }
+    public ICommand OpenCustomCountdownCommand { get; }
+    public ICommand StartCustomCountdownCommand { get; }
+    public ICommand CancelCustomCountdownCommand { get; }
+    public ICommand ConnectToBackendCommand { get; }
+    public ICommand TogglePlayerExpansionCommand { get; }
+    public ICommand SaveSnapshotCommand { get; }
+    public ICommand LoadSnapshotCommand { get; }
+    public ICommand SortByCommand { get; }
+    public ICommand StartCountdownCommand { get; }
+    public ICommand ExitApplicationCommand { get; }
+    public ICommand IncreaseFontSizeCommand { get; }
+    public ICommand DecreaseFontSizeCommand { get; }
+
 
     public MainViewModel(ApiService apiService, LocalizationService localizationService)
     {
+        OpenCountdownOptionsCommand = new RelayCommand(_ => OpenCountdownOptions());
+        OpenCustomCountdownCommand = new RelayCommand(_ => OpenCustomCountdown());
+        CancelCustomCountdownCommand = new RelayCommand(_ => CancelCustomCountdown());
+        SortByCommand = new RelayCommand(columnName => SortBy((string)columnName!));
+        ExitApplicationCommand = new RelayCommand(_ => ExitApplication());
+        IncreaseFontSizeCommand = new RelayCommand(_ => IncreaseFontSize());
+        DecreaseFontSizeCommand = new RelayCommand(_ => DecreaseFontSize());
+        
+        StartCustomCountdownCommand = new AsyncRelayCommand(async _ => await StartCustomCountdown());
+        ConnectToBackendCommand = new AsyncRelayCommand(async _ => await ConnectToBackendAsync());
+        TogglePlayerExpansionCommand = new AsyncRelayCommand(async player => await TogglePlayerExpansion((PlayerViewModel)player!));
+        SaveSnapshotCommand = new AsyncRelayCommand(async _ => await SaveSnapshotAsync());
+        LoadSnapshotCommand = new AsyncRelayCommand(async _ => await LoadSnapshotAsync());
+        StartCountdownCommand = new AsyncRelayCommand(async seconds => await StartCountdown((string?)seconds));
+
         _skillUpdateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _skillUpdateTimer.Tick += SkillUpdateTimer_Tick;
         _playersView = CollectionViewSource.GetDefaultView(Players);
@@ -276,20 +655,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         _notificationTimer.Stop();
         _notificationTimer.Start();
     }
-
-    partial void OnSearchFilterTextChanged(string value)
-    {
-        _ = value;
-        // 重置并启动防抖计时器
-        _searchDebounceTimer.Stop();
-        _searchDebounceTimer.Start();
-    }
-
-    partial void OnSelectedSearchModeItemChanged(SearchModeItem? value)
-    {
-        _ = value;
-        ApplyFilter();
-    }
+    
 
     private void ApplyFilter()
     {
@@ -353,35 +719,20 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         await _apiService.DisposeAsync();
         GC.SuppressFinalize(this);
     }
-
-
-    partial void OnIsSmartIdleModeEnabledChanged(bool value)
-    {
-        _ = value;
-        // 重新应用排序规则，这会添加或移除按 IsIdle 排序的规则
-        ApplySorting();
-
-        // 立即刷新整个列表的显示，包括排序、排名和百分比
-        RefreshAndSortPlayerList();
-    }
-
-    partial void OnPlayersChanged(ObservableCollection<PlayerViewModel> value)
-    {
-        PlayersView = CollectionViewSource.GetDefaultView(value);
-    }
-
-    partial void OnCustomCountdownMinutesChanged(string value)
-    {
-        if (!double.TryParse(value, out var minutes)) return;
-        if (!(minutes > 60)) return;
-        _customCountdownMinutes = "60";
-        OnPropertyChanged(nameof(CustomCountdownMinutes));
-    }
+    
 
     private async void SkillUpdateTimer_Tick(object? sender, EventArgs e)
     {
-        // 如果存在一个已展开的玩家，并且我们不在快照模式下，则刷新其技能数据
-        if (_expandedPlayer != null && !IsInSnapshotMode) await FetchAndProcessSkillDataAsync(_expandedPlayer);
+        try
+        {
+            // 如果存在一个已展开的玩家，并且我们不在快照模式下，则刷新其技能数据
+            if (_expandedPlayer != null && !IsInSnapshotMode) await FetchAndProcessSkillDataAsync(_expandedPlayer);
+        }
+        catch (Exception error)
+        {
+            Debug.WriteLine($"Error updating skills: {error.Message}");
+            ShowNotification(Localization["Error_UpdatingSkills"] ?? "更新技能数据时出错");
+        }
     }
 
     /// <summary>
@@ -419,7 +770,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     /// <summary>
     ///     打开倒计时选项弹窗。
     /// </summary>
-    [RelayCommand]
     private void OpenCountdownOptions()
     {
         IsCountdownOptionsPopupOpen = true;
@@ -428,14 +778,13 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     /// <summary>
     ///     打开自定义倒计时弹窗。
     /// </summary>
-    [RelayCommand]
     private void OpenCustomCountdown()
     {
         IsCountdownOptionsPopupOpen = false;
         IsCustomCountdownPopupOpen = true;
     }
 
-    [RelayCommand]
+
     private async Task StartCustomCountdown()
     {
         if (double.TryParse(CustomCountdownMinutes, out var minutes) && minutes is > 0 and <= 60)
@@ -452,7 +801,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
     /// <summary>
     ///     取消自定义倒计时并关闭弹窗。
     /// </summary>
-    [RelayCommand]
     private void CancelCustomCountdown()
     {
         IsCustomCountdownPopupOpen = false;
@@ -556,25 +904,6 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             : timeSpan.ToString(@"m\:ss");
     }
 
-    partial void OnIsLockedChanged(bool value)
-    {
-        LockMenuHeaderText = value ? Localization["Unlock"] ?? "解锁" : Localization["Lock"] ?? "锁定";
-        LockIconContent = value ? "🔒" : "🔓";
-        if (value) ShowNotification("可通过托盘图标右键解锁");
-    }
-
-    partial void OnIsPausedChanged(bool value)
-    {
-        PauseStatusColor = value ? Brushes.Red : Brushes.LimeGreen;
-        PauseButtonText = value ? Localization["Resume"] ?? "恢复" : Localization["Pause"] ?? "暂停";
-    }
-
-    partial void OnUiUpdateIntervalChanged(int value)
-    {
-        _ = value;
-        UpdateTimerInterval();
-    }
-
     private void UpdateColumnTotals()
     {
         var playersForTotals = IsSmartIdleModeEnabled ? Players.Where(p => !p.IsIdle).ToList() : Players.ToList();
@@ -622,7 +951,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         };
     }
 
-    [RelayCommand]
+
     private async Task ConnectToBackendAsync()
     {
         ConnectionStatusText = Localization["Connecting"] ?? "正在连接...";
@@ -643,36 +972,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         }
     }
 
-    [RelayCommand]
-    private void ExportToCsv()
-    {
-        if (!Players.Any())
-        {
-            ShowNotification("没有数据可以导出");
-            return;
-        }
 
-        var currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        var confirmationMessage = $"是否要将当前列表中的所有数据导出为CSV文件？\n\n文件将保存在:\n{currentDirectory}";
-        var result = MessageBox.Show(confirmationMessage, "导出确认", MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (result != MessageBoxResult.Yes) return;
-        try
-        {
-            var fileName = $"StarResonanceDPS_{DateTime.Now:yyyyMMdd_HHmm}.csv";
-            var filePath = Path.Combine(currentDirectory, fileName);
-            var sb = new StringBuilder();
-            foreach (var player in Players.OrderBy(p => p.Rank)) sb.AppendLine(player.CopyableString);
-            File.WriteAllText(filePath, sb.ToString(), Encoding.UTF8);
-            ShowNotification($"成功导出到: {filePath}");
-        }
-        catch (Exception ex)
-        {
-            ShowNotification($"导出失败: {ex.Message}");
-            Debug.WriteLine($"CSV Export failed: {ex}");
-        }
-    }
-
-    [RelayCommand]
     private async Task TogglePlayerExpansion(PlayerViewModel player)
     {
         if (player.IsExpanded)
@@ -772,7 +1072,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         }
     }
 
-    [RelayCommand]
+
     private async Task SaveSnapshotAsync()
     {
         if (!Players.Any())
@@ -817,7 +1117,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         }
     }
 
-    [RelayCommand]
+
     private async Task LoadSnapshotAsync()
     {
         var openFileDialog = new OpenFileDialog
@@ -1187,7 +1487,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         UpdateColumnTotals();
     }
 
-    [RelayCommand]
+
     private void SortBy(string columnName)
     {
         if (SortColumn == columnName)
@@ -1206,7 +1506,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         RefreshAndSortPlayerList();
     }
 
-    [RelayCommand]
+
     public async Task ResetDataAsync()
     {
         _skillUpdateTimer.Stop();
@@ -1313,7 +1613,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
             await ProcessData(refreshedData);
     }
 
-    [RelayCommand]
+
     public async Task TogglePauseAsync()
     {
         var targetPauseState = !IsPaused;
@@ -1330,7 +1630,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         }
     }
 
-    [RelayCommand]
+
     private async Task StartCountdown(string? secondsStr)
     {
         if (IsCountdownRunning) return;
@@ -1373,7 +1673,7 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         }
     }
 
-    [RelayCommand]
+
     public async Task AbortCountdownAsync()
     {
         if (!IsCountdownRunning) return;
@@ -1384,13 +1684,13 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         ShowNotification("倒计时已中断");
     }
 
-    [RelayCommand]
+
     public void ToggleLock()
     {
         IsLocked = !IsLocked;
     }
 
-    [RelayCommand]
+
     public void ToggleSettings()
     {
         IsSettingsVisible = !IsSettingsVisible;
@@ -1402,19 +1702,19 @@ public partial class MainViewModel : ObservableObject, IAsyncDisposable, INotifi
         if (IsPauseOnExitEnabled && !IsPaused) await _apiService.SetPauseStateAsync(true);
     }
 
-    [RelayCommand]
+
     private static void ExitApplication()
     {
         Application.Current.Shutdown();
     }
 
-    [RelayCommand]
+
     private void IncreaseFontSize()
     {
         if (FontSize < 24) FontSize++;
     }
 
-    [RelayCommand]
+
     private void DecreaseFontSize()
     {
         if (FontSize > 10) FontSize--;
