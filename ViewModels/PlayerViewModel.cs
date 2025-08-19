@@ -59,6 +59,8 @@ public partial class PlayerViewModel(
     
     public double DamagePercent { get; set; }
     public double HealingPercent { get; set; }
+    public int MaxHp { get; private set; }
+
 
 
     /// <summary>
@@ -70,7 +72,7 @@ public partial class PlayerViewModel(
     /// <param name="notificationService">通知服务实例。</param>
     public PlayerViewModel(PlayerSnapshot snapshot, string fightDuration, LocalizationService localizationService,
         INotificationService notificationService)
-        // 修正：从 SkillData 中安全地获取 Uid，如果不存在则默认为0
+        // 从 SkillData 中安全地获取 Uid，如果不存在则默认为0
         : this(snapshot.SkillData?.Uid ?? 0, localizationService, notificationService)
     {
         Update(snapshot.UserData, 0, fightDuration);
@@ -97,6 +99,7 @@ public partial class PlayerViewModel(
         _cachedToolTipText = BuildToolTipText();
         _cachedCopyableString = BuildCopyableString();
         if (NameColor.CanFreeze) NameColor.Freeze();
+        
     }
 
     /// <summary>
@@ -182,7 +185,7 @@ public partial class PlayerViewModel(
         var rankLevelText = attr is { RankLevel: > 0 } ? attr.RankLevel.ToString() : unknownText;
         sb.AppendLine($"{(localizationService["Tooltip_RankLevel"] ?? "臂章等级:").TrimEnd(':')} {rankLevelText}");
 
-        var maxHpText = attr is { MaxHp: > 0 } ? attr.MaxHp.ToString("N0") : unknownText;
+        var maxHpText = MaxHp > 0 ? MaxHp.ToString("N0") : unknownText;
         sb.AppendLine($"{(localizationService["Tooltip_MaxHP"] ?? "最大生命值:").TrimEnd(':')} {maxHpText}");
 
         // 评分和职业
@@ -362,6 +365,7 @@ public partial class PlayerViewModel(
         TotalDps = data.TotalDps;
         TotalHps = data.TotalHps;
         TakenDamage = data.TakenDamage;
+        MaxHp = data.MaxHp;
 
         if (oldName != Name ||
             oldProfession != Profession ||

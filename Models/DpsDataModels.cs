@@ -83,6 +83,9 @@ public record UserData
     [JsonInclude]
     [JsonPropertyName("total_count")]
     public TotalCount TotalCount { get; init; } = new() { Normal = 0, Critical = 0, Lucky = 0, Total = 0 };
+    [JsonInclude]
+    [JsonPropertyName("max_hp")]
+    public int MaxHp { get; init; }
 }
 
 public record ApiResponse
@@ -217,10 +220,7 @@ public record Attr
     [JsonInclude]
     [JsonPropertyName("rank_level")]
     public int RankLevel { get; init; }
-
-    [JsonInclude]
-    [JsonPropertyName("max_hp")]
-    public int MaxHp { get; init; }
+    
 }
 
 public record SkillApiResponse
