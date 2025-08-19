@@ -146,6 +146,8 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
         OpenCustomCountdownCommand = new RelayCommand(_ => OpenCustomCountdown());
         CancelCustomCountdownCommand = new RelayCommand(_ => CancelCustomCountdown());
         SortByCommand = new RelayCommand(columnName => SortBy((string)columnName!));
+        ToggleLockCommand = new RelayCommand(_ => ToggleLock());
+        ToggleSettingsCommand = new RelayCommand(_ => ToggleSettings());
         ExitApplicationCommand = new RelayCommand(_ => ExitApplication());
         IncreaseFontSizeCommand = new RelayCommand(_ => IncreaseFontSize());
         DecreaseFontSizeCommand = new RelayCommand(_ => DecreaseFontSize());
@@ -540,6 +542,8 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
     public ICommand TogglePlayerExpansionCommand { get; }
     public ICommand SortByCommand { get; }
     public ICommand StartCountdownCommand { get; }
+    public ICommand ToggleLockCommand { get; }
+    public ICommand ToggleSettingsCommand { get; }
     public ICommand ExitApplicationCommand { get; }
     public ICommand IncreaseFontSizeCommand { get; }
     public ICommand DecreaseFontSizeCommand { get; }
@@ -991,6 +995,7 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
             ShowNotification("已经连接到该服务地址");
             return;
         }
+
         ConnectionStatusText = Localization["Connecting"] ?? "正在连接...";
         ConnectionStatusColor = Brushes.Orange;
         await _apiService.ReinitializeAsync(BackendUrl);
@@ -1012,10 +1017,7 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
             });
             // 从新服务器获取初始数据
             var initialData = await _apiService.GetInitialDataAsync();
-            if (initialData != null)
-            {
-                await ProcessData(initialData);
-            }
+            if (initialData != null) await ProcessData(initialData);
 
             await _apiService.ConnectAsync();
             ShowNotification("连接成功！");

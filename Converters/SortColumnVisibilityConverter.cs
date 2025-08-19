@@ -14,7 +14,7 @@ public class SortColumnVisibilityConverter : IMultiValueConverter
     /// <param name="parameter">未使用。</param>
     /// <param name="culture">未使用。</param>
     /// <returns>如果两个字符串忽略大小写相等，则返回 <see cref="Visibility.Visible" />，否则返回 <see cref="Visibility.Collapsed" />。</returns>
-    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+    public object Convert(object[] values, Type targetType, object? parameter, CultureInfo? culture)
     {
         if (values is [string sortColumn, string commandParameter])
             return sortColumn.Equals(commandParameter, StringComparison.OrdinalIgnoreCase)
@@ -24,7 +24,7 @@ public class SortColumnVisibilityConverter : IMultiValueConverter
         return Visibility.Collapsed;
     }
 
-    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+    public object[] ConvertBack(object value, Type[] targetTypes, object? parameter, CultureInfo? culture)
     {
         throw new NotImplementedException();
     }

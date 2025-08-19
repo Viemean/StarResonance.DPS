@@ -15,9 +15,7 @@ public class FontFamilyNameConverter : IValueConverter
         var lang = XmlLanguage.GetLanguage(culture.IetfLanguageTag);
         return fontFamily.FamilyNames.TryGetValue(lang, out var name)
             ? name
-            :
-            // 如果找不到，则回退到默认（通常是英文）名称
-            fontFamily.Source;
+            : fontFamily.Source;
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
