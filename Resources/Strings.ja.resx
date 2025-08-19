@@ -135,9 +135,6 @@
     <data name="Unlock" xml:space="preserve">
     <value>ロック解除</value>
   </data>
-    <data name="WindowOpacity" xml:space="preserve">
-    <value>不透明度</value>
-  </data>
     <data name="FightDuration" xml:space="preserve">
     <value>時間</value>
 </data>
@@ -213,4 +210,8 @@
     <data name="Error_LoadingSnapshot" xml:space="preserve">
     <value>スナップショットの読み込み中にエラーが発生しました</value>
   </data>
+  <data name="WindowOpacity" xml:space="preserve">
+    <value>背景の不透明度</value> </data>
+  <data name="FontOpacity" xml:space="preserve">
+    <value>フォントの不透明度</value> </data>
 </root>

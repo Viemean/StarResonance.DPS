@@ -17,8 +17,7 @@
     <Border>
         <Border.Style>
             <Style TargetType="Border">
-                <Setter Property="BorderThickness" Value="0,0,0,1" />
-                <Setter Property="BorderBrush" Value="#444" />
+                <Setter Property="BorderThickness" Value="0" /> <Setter Property="BorderBrush" Value="#444" />
                 <Style.Triggers>
                     <DataTrigger Binding="{Binding IsMatchInFilter}" Value="False">
                         <Setter Property="Opacity" Value="0.3" />
@@ -27,11 +26,16 @@
                         <MultiDataTrigger.Conditions>
                             <Condition Binding="{Binding IsIdle}" Value="True" />
                             <!-- ReSharper disable once Xaml.BindingWithContextNotResolved -->
-                            <Condition Binding="{Binding DataContext.IsSmartIdleModeEnabled, RelativeSource={RelativeSource AncestorType=Window}}" Value="True" />
+                            <Condition
+                                Binding="{Binding DataContext.IsSmartIdleModeEnabled, RelativeSource={RelativeSource AncestorType=Window}}"
+                                Value="True" />
                             <!-- ReSharper disable once Xaml.BindingWithContextNotResolved -->
-                            <Condition Binding="{Binding DataContext.SearchFilterText, RelativeSource={RelativeSource AncestorType=Window}}" Value="" />
+                            <Condition
+                                Binding="{Binding DataContext.SearchFilterText, RelativeSource={RelativeSource AncestorType=Window}}"
+                                Value="" />
                         </MultiDataTrigger.Conditions>
-                        <Setter Property="Opacity" Value="0.3" /> </MultiDataTrigger>
+                        <Setter Property="Opacity" Value="0.3" />
+                    </MultiDataTrigger>
                     <DataTrigger Binding="{Binding ShowSeparatorAfter}" Value="True">
                         <Setter Property="BorderBrush" Value="Green" />
                         <Setter Property="BorderThickness" Value="0,0,0,2" />

@@ -135,9 +135,6 @@
     <data name="Unlock" xml:space="preserve">
     <value>解锁</value>
   </data>
-    <data name="WindowOpacity" xml:space="preserve">
-    <value>窗口透明度</value>
-  </data>
     <data name="FightDuration" xml:space="preserve">
     <value>计时</value>
 </data>
@@ -213,4 +210,8 @@
     <data name="Error_LoadingSnapshot" xml:space="preserve">
     <value>加载快照时出错</value>
   </data>
+  <data name="WindowOpacity" xml:space="preserve">
+    <value>背景透明度</value> </data>
+  <data name="FontOpacity" xml:space="preserve">
+    <value>字体透明度</value> </data>
 </root>

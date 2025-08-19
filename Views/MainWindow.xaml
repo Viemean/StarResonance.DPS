@@ -24,6 +24,7 @@
     <Window.Resources>
         <converters:SortDirectionToArrowConverter x:Key="SortDirectionToArrowConverter" />
         <converters:SortColumnVisibilityConverter x:Key="SortColumnVisibilityConverter" />
+        <converters:OpacityToBrushConverter x:Key="OpacityToBrushConverter" />
         <Style TargetType="ToolTip">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -145,8 +146,9 @@
 
     <Grid>
 
-        <Border Background="#222222" CornerRadius="8" BorderBrush="#555" BorderThickness="1"
-                x:Name="MainBorder" Opacity="{Binding WindowOpacity}" />
+        <Border x:Name="MainBorder"
+                Background="{Binding WindowOpacity, Converter={StaticResource OpacityToBrushConverter}, ConverterParameter='#222222'}"
+                CornerRadius="8" BorderBrush="#555" BorderThickness="1" />
 
         <Grid Opacity="{Binding FontOpacity}">
             <Grid>

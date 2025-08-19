@@ -63,6 +63,8 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
 
     private string _fightDurationText = "0:00";
 
+    private double _fontOpacity = 1.0;
+
     private double _fontSize = 14;
 
     private bool _isCountdownOptionsPopupOpen;
@@ -515,10 +517,7 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
     public double WindowOpacity
     {
         get => _windowOpacity;
-        set
-        {
-            if (SetProperty(ref _windowOpacity, value)) OnPropertyChanged(nameof(FontOpacity));
-        }
+        set => SetProperty(ref _windowOpacity, value);
     }
 
     public double WindowTop
@@ -573,7 +572,12 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
     public Visibility NotificationVisibility => IsNotificationVisible ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SettingsVisibility => IsSettingsVisible ? Visibility.Visible : Visibility.Collapsed;
     public bool IsHitTestVisible => !IsLocked;
-    public double FontOpacity => WindowOpacity < 0.8 ? 0.8 : WindowOpacity;
+
+    public double FontOpacity
+    {
+        get => _fontOpacity;
+        set => SetProperty(ref _fontOpacity, value);
+    }
 
     public IEnumerable<FontFamily> SystemFonts { get; }
 
@@ -859,6 +863,7 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
                         : timeSpan.ToString(@"m\:ss");
                     if (_isFightActive && !IsPaused) _fightTimer.Start();
                     WindowOpacity = state.WindowOpacity;
+                    FontOpacity = state.FontOpacity > 0 ? state.FontOpacity : 1.0;
                     FontSize = state.FontSize;
                     var loadedFont = SystemFonts.FirstOrDefault(f =>
                         f.Source.Equals(state.FontFamilySource, StringComparison.OrdinalIgnoreCase));
@@ -903,6 +908,7 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
                 ElapsedSeconds = _elapsedSeconds,
                 IsFightActive = _isFightActive,
                 WindowOpacity = WindowOpacity,
+                FontOpacity = FontOpacity,
                 FontSize = FontSize,
                 FontFamilySource = SelectedFontFamily.Source,
                 IsSmartIdleModeEnabled = IsSmartIdleModeEnabled,
@@ -1552,7 +1558,7 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
     }
 
 
-    public void ToggleSettings()
+    private void ToggleSettings()
     {
         IsSettingsVisible = !IsSettingsVisible;
     }

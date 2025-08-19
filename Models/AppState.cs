@@ -7,6 +7,7 @@ public class AppState
     public int ElapsedSeconds { get; init; }
     public bool IsFightActive { get; init; }
     public double WindowOpacity { get; init; } = 0.85;
+    public double FontOpacity { get; init; } = 1.0;
     public double FontSize { get; init; } = 14;
     public string FontFamilySource { get; init; } = "Microsoft YaHei";
     public bool IsSmartIdleModeEnabled { get; init; }
