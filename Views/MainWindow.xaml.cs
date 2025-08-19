@@ -11,9 +11,10 @@ using StarResonance.DPS.ViewModels;
 namespace StarResonance.DPS.Views;
 
 public partial class MainWindow
-{
-    private const int GwlExstyle = -20;
+{ 
+    private const int GwlExstyle = -20; 
     private const int WsExTransparent = 0x20;
+
     private MainViewModel? _viewModel;
 
     public MainWindow()
@@ -24,34 +25,73 @@ public partial class MainWindow
         StateChanged += MainWindow_OnStateChanged;
     }
 
+    /// <summary>
+    /// 获取指定窗口的扩展样式。
+    /// </summary>
+    /// <param name="hWnd">窗口句柄。</param>
+    /// <param name="nIndex">要检索的值的偏移量，GWL_EXSTYLE 表示扩展样式。</param>
+    /// <returns>函数的返回值是请求的值。</returns>
     [LibraryImport("user32.dll")]
     private static partial IntPtr GetWindowLongPtrW(IntPtr hWnd, int nIndex);
 
+    /// <summary>
+    /// 修改指定窗口的扩展样式。
+    /// </summary>
+    /// <param name="hWnd">窗口句柄。</param>
+    /// <param name="nIndex">要设置的值的偏移量。</param>
+    /// <param name="dwNewLong">新的值。</param>
+    /// <returns>函数的返回值是指定偏移量的前一个值。</returns>
     [LibraryImport("user32.dll")]
     private static partial IntPtr SetWindowLongPtrW(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 
 
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        // 仅当 IsLocked 属性发生变化时才执行操作
         if (e.PropertyName != nameof(MainViewModel.IsLocked)) return;
+
+        // 根据 IsLocked 的值，启用或禁用鼠标穿透
         if (_viewModel!.IsLocked)
             SetWindowClickThrough();
         else
             ClearWindowClickThrough();
     }
 
+    /// <summary>
+    /// 启用窗口的鼠标穿透功能。
+    /// 添加 WS_EX_TRANSPARENT 样式后，窗口将不再接收鼠标事件，
+    /// 所有鼠标点击都会“穿透”到下方的窗口。
+    /// </summary>
     private void SetWindowClickThrough()
     {
+        // 获取当前WPF窗口的句柄(HWND)
         var hwnd = new WindowInteropHelper(this).Handle;
+
+        //  获取当前窗口的扩展样式
         var extendedStyle = GetWindowLongPtrW(hwnd, GwlExstyle);
-        _ = SetWindowLongPtrW(hwnd, GwlExstyle, new IntPtr(extendedStyle.ToInt64() | WsExTransparent));
+        
+        // 这样可以在保留原有样式的基础上，增加鼠标穿透特性
+        var newExtendedStyle = extendedStyle.ToInt64() | WsExTransparent;
+
+        // 将新的样式应用到窗口
+        _ = SetWindowLongPtrW(hwnd, GwlExstyle, new IntPtr(newExtendedStyle));
     }
 
+    /// <summary>
+    /// 禁用窗口的鼠标穿透功能，恢复正常交互。
+    /// 移除 WS_EX_TRANSPARENT 样式后，窗口将能正常响应鼠标事件。
+    /// </summary>
     private void ClearWindowClickThrough()
     {
+        // 获取当前WPF窗口的句柄(HWND)
         var hwnd = new WindowInteropHelper(this).Handle;
+
+        // 获取当前窗口的扩展样式
         var extendedStyle = GetWindowLongPtrW(hwnd, GwlExstyle);
-        _ = SetWindowLongPtrW(hwnd, GwlExstyle, new IntPtr(extendedStyle.ToInt64() & ~WsExTransparent));
+
+        var newExtendedStyle = extendedStyle.ToInt64() & ~WsExTransparent;
+
+        _ = SetWindowLongPtrW(hwnd, GwlExstyle, new IntPtr(newExtendedStyle));
     }
 
     private async void Player_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -105,6 +145,8 @@ public partial class MainWindow
         try
         {
             _viewModel = (MainViewModel)DataContext;
+            // 订阅ViewModel的属性变更通知，这是连接视图逻辑和视图模型状态的关键
+            _viewModel.PropertyChanged += ViewModel_PropertyChanged;
             await _viewModel.InitializeAsync();
         }
         catch (Exception ex)
@@ -119,6 +161,7 @@ public partial class MainWindow
         try
         {
             if (_viewModel == null) return;
+            // 在窗口关闭时取消订阅，防止内存泄漏
             _viewModel.PropertyChanged -= ViewModel_PropertyChanged;
             await _viewModel.PauseOnExitAsync();
             await _viewModel.DisposeAsync();
