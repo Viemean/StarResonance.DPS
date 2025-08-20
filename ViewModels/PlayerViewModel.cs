@@ -196,7 +196,7 @@ public class PlayerViewModel : ObservableObject
     public Brush NameColor
     {
         get => _nameColor;
-        set => SetProperty(ref _nameColor, value);
+        private set => SetProperty(ref _nameColor, value);
     }
 
     public string Profession
@@ -255,7 +255,7 @@ public class PlayerViewModel : ObservableObject
 
     public double DamagePercent { get; set; }
     public double HealingPercent { get; set; }
-    public int MaxHp { get; private set; }
+    private int MaxHp { get; set; }
 
     public ICommand CopyDataCommand { get; }
 
@@ -304,7 +304,7 @@ public class PlayerViewModel : ObservableObject
     public DateTime LastActiveTime { get; set; } = DateTime.UtcNow;
     public ObservableCollection<SkillViewModel> Skills { get; } = new();
 
-    public long Uid { get; }
+    public long Uid { get; set; }
     public string TotalDamageText => TotalDamage > 0 ? MainViewModel.FormatNumber(TotalDamage) : string.Empty;
     public string TotalHealingText => TotalHealing > 0 ? MainViewModel.FormatNumber(TotalHealing) : string.Empty;
     public string TotalDpsText => TotalDps > 0 ? MainViewModel.FormatNumber(TotalDps) : string.Empty;
@@ -595,5 +595,50 @@ public class PlayerViewModel : ObservableObject
         _cachedCopyableString = null;
         OnPropertyChanged(nameof(ToolTipText));
         OnPropertyChanged(nameof(CopyableString));
+    }
+
+    /// <summary>
+    /// 重置ViewModel的状态，以便在对象池中被复用。
+    /// </summary>
+    public void Reset()
+    {
+        // 重置所有可变属性为默认值
+        _cachedCopyableString = null;
+        _cachedToolTipText = null;
+        AccurateCritDamageText = null;
+        AccurateCritHealingText = null;
+        DamageDisplayPercentage = null;
+        DpsDisplayPercentage = null;
+        HealingDisplayPercentage = null;
+        HpsDisplayPercentage = null;
+        TakenDamageDisplayPercentage = null;
+
+        UserData = null;
+        _data = null;
+        RawSkillData = null;
+
+        _fightDuration = "0:00";
+        FightPoint = 0;
+        IsExpanded = false;
+        IsIdle = false;
+        IsMatchInFilter = true;
+        IsLoadingSkills = false;
+        Name = string.Empty;
+        NameColor = Brushes.White;
+        Profession = string.Empty;
+        Rank = 0;
+        ShowSeparatorAfter = false;
+        TakenDamage = 0;
+        TotalDamage = 0;
+        TotalDps = 0;
+        TotalHealing = 0;
+        TotalHps = 0;
+        DamagePercent = 0;
+        HealingPercent = 0;
+        MaxHp = 0;
+
+        Skills.Clear();
+
+        LastActiveTime = DateTime.UtcNow;
     }
 }
