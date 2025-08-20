@@ -141,8 +141,8 @@
                    IsOpen="{Binding IsCountdownOptionsPopupOpen, Mode=TwoWay}">
                 <Border CornerRadius="6"
                         Background="{Binding WindowOpacity, Converter={StaticResource OpacityToBrushConverter}, ConverterParameter='#222222'}"
-                        Padding="5" Margin="5"
-                        Opacity="{Binding FontOpacity}" TextBlock.FontSize="{Binding FontSize}">
+                        Padding="15"
+                        TextBlock.FontSize="{Binding FontSize}">
                     <StackPanel>
                         <Button Content="{Binding Localization[OneMinute]}" Command="{Binding StartCountdownCommand}"
                                 CommandParameter="60" Style="{StaticResource TransparentButtonStyle}" />
@@ -164,7 +164,7 @@
                 <Border CornerRadius="6"
                         Background="{Binding WindowOpacity, Converter={StaticResource OpacityToBrushConverter}, ConverterParameter='#222222'}"
                         Padding="15"
-                        Opacity="{Binding WindowOpacity}" TextBlock.FontSize="{Binding FontSize}">
+                        TextBlock.FontSize="{Binding FontSize}">
                     <StackPanel>
                         <TextBlock Text="{Binding Localization[EnterCountdownMinutes]}" Foreground="White" />
                         <TextBox x:Name="CountdownTextBox" Margin="0,5,0,10"
