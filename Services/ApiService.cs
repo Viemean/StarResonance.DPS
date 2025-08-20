@@ -11,17 +11,19 @@ namespace StarResonance.DPS.Services;
 /// </summary>
 public class ApiService : IAsyncDisposable
 {
-    private string _baseUrl;
     private HttpClient? _httpClient;
     private SocketIOClient.SocketIO? _socket;
-    //获取当前URL和连接状态
-    public string CurrentUrl => _baseUrl;
-    public bool IsConnected => _socket?.Connected ?? false;
+
     public ApiService(string baseUrl = "http://localhost:8989")
     {
-        _baseUrl = baseUrl;
+        CurrentUrl = baseUrl;
         InitializeClients();
     }
+
+    //获取当前URL和连接状态
+    public string CurrentUrl { get; private set; }
+
+    public bool IsConnected => _socket?.Connected ?? false;
 
     public async ValueTask DisposeAsync()
     {
@@ -46,7 +48,7 @@ public class ApiService : IAsyncDisposable
 
     private void InitializeClients()
     {
-        var httpBaseUrl = _baseUrl.Replace("ws://", "http://").Replace("wss://", "https://");
+        var httpBaseUrl = CurrentUrl.Replace("ws://", "http://").Replace("wss://", "https://");
         _httpClient = new HttpClient { BaseAddress = new Uri(httpBaseUrl) };
         _socket = new SocketIOClient.SocketIO(_httpClient.BaseAddress);
 
@@ -74,7 +76,7 @@ public class ApiService : IAsyncDisposable
     public async Task ReinitializeAsync(string baseUrl)
     {
         await DisposeAsyncCore();
-        _baseUrl = baseUrl;
+        CurrentUrl = baseUrl;
         InitializeClients();
     }
 

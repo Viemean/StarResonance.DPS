@@ -13,8 +13,9 @@ public partial class App
     private Mutex? _appMutex;
 
     public new static App Current => (App)Application.Current;
-    
+
     public ServiceProvider Services { get; } = ConfigureServices();
+
     /// <summary>
     ///     配置应用程序的服务。
     /// </summary>
@@ -33,7 +34,8 @@ public partial class App
         // 注册视图 (Views)
         services.AddSingleton<MainWindow>();
         // 注册托盘图标服务
-        services.AddTransient(sp => new TrayIconService(sp.GetRequiredService<MainWindow>(), sp.GetRequiredService<MainViewModel>()));
+        services.AddTransient(sp =>
+            new TrayIconService(sp.GetRequiredService<MainWindow>(), sp.GetRequiredService<MainViewModel>()));
 
 
         return services.BuildServiceProvider();

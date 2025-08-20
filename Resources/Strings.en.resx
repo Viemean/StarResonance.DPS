@@ -211,8 +211,8 @@
     <data name="Error_LoadingSnapshot" xml:space="preserve">
     <value>Error loading snapshot</value>
   </data>
-  <data name="WindowOpacity" xml:space="preserve">
+    <data name="WindowOpacity" xml:space="preserve">
     <value>Background Opacity</value> </data>
-  <data name="FontOpacity" xml:space="preserve">
+    <data name="FontOpacity" xml:space="preserve">
     <value>Font Opacity</value> </data>
 </root>

@@ -21,7 +21,7 @@
                 <Setter Property="Background" Value="#555" />
                 <Setter Property="Foreground" Value="White" />
             </Style>
-    
+
             <converters:FontFamilyNameConverter x:Key="FontFamilyNameConverter" />
         </Border.Resources>
 

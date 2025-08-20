@@ -1,27 +1,23 @@
 ﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace StarResonance.DPS.ViewModels
+namespace StarResonance.DPS.ViewModels;
+
+public class ObservableObject : INotifyPropertyChanged
 {
-    public class ObservableObject : INotifyPropertyChanged
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
-        public event PropertyChangedEventHandler? PropertyChanged;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 
-        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
+    protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value)) return false;
 
-        protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-        {
-            if (EqualityComparer<T>.Default.Equals(field, value))
-            {
-                return false;
-            }
-
-            field = value;
-            OnPropertyChanged(propertyName);
-            return true;
-        }
+        field = value;
+        OnPropertyChanged(propertyName);
+        return true;
     }
 }

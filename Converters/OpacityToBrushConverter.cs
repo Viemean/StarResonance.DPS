@@ -6,6 +6,8 @@ namespace StarResonance.DPS.Converters;
 
 public class OpacityToBrushConverter : IValueConverter
 {
+    private readonly Dictionary<(Color, double), Brush> _brushCache = new();
+
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is not double opacity)
@@ -14,7 +16,6 @@ public class OpacityToBrushConverter : IValueConverter
         // 默认基础颜色为黑色
         var baseColor = Colors.Black;
         if (parameter is string colorString)
-        {
             try
             {
                 // 尝试从参数解析颜色
@@ -24,17 +25,19 @@ public class OpacityToBrushConverter : IValueConverter
             {
                 // 解析失败则使用默认黑色
             }
-        }
-        
+
         // 确保透明度值在 0.0 到 1.0 之间
         opacity = Math.Clamp(opacity, 0.0, 1.0);
 
+        var cacheKey = (baseColor, opacity);
+        if (_brushCache.TryGetValue(cacheKey, out var cachedBrush)) return cachedBrush;
         // 计算最终的 alpha (透明度) 通道值
         var alpha = (byte)(opacity * 255);
 
         // 创建并返回一个新地带有透明度的画刷
         var brush = new SolidColorBrush(Color.FromArgb(alpha, baseColor.R, baseColor.G, baseColor.B));
         brush.Freeze(); // 冻结画刷以提升性能
+        _brushCache[cacheKey] = brush; // 存入缓存
         return brush;
     }
 

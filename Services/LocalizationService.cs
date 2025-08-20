@@ -2,6 +2,7 @@
 using System.Reflection;
 using System.Resources;
 using StarResonance.DPS.ViewModels;
+
 namespace StarResonance.DPS.Services;
 
 public class LocalizationService : ObservableObject

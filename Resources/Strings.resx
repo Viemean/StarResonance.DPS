@@ -210,8 +210,8 @@
     <data name="Error_LoadingSnapshot" xml:space="preserve">
     <value>加载快照时出错</value>
   </data>
-  <data name="WindowOpacity" xml:space="preserve">
+    <data name="WindowOpacity" xml:space="preserve">
     <value>背景透明度</value> </data>
-  <data name="FontOpacity" xml:space="preserve">
+    <data name="FontOpacity" xml:space="preserve">
     <value>字体透明度</value> </data>
 </root>
