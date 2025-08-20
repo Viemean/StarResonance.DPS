@@ -15,7 +15,7 @@
     * 下载最新版本的 `star-resonance-damage-counter.exe`**先运行它**。
 
 2.  **安装 .NET 运行时 (必需)**
-    * 本应用基于 .NET 9 框架。请先[点击此处安装最新的 .NET 9.0 桌面运行时](https://dotnet.microsoft.com/zh-cn/download/dotnet/thank-you/runtime-desktop-9.0.8-windows-x64-installer) 
+    * 本应用基于 .NET 10 框架。请先[点击此处安装最新的 .NET 10 桌面运行时](https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/10.0.0-preview.7.25380.108/windowsdesktop-runtime-10.0.0-preview.7.25380.108-win-x64.exe) 
 
 3.  **下载并运行本应用**
     * 前往本项目的 [GitHub Releases](https://github.com/Viemean/StarResonance.DPS/releases) 页面下载运行。
