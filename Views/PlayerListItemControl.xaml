@@ -20,7 +20,7 @@
                 <Setter Property="BorderThickness" Value="0" /> <Setter Property="BorderBrush" Value="#444" />
                 <Style.Triggers>
                     <DataTrigger Binding="{Binding IsMatchInFilter}" Value="False">
-                        <Setter Property="Opacity" Value="0.01" />
+                        <Setter Property="Opacity" Value="0.5" />
                     </DataTrigger>
                     <MultiDataTrigger>
                         <MultiDataTrigger.Conditions>
@@ -34,7 +34,7 @@
                                 Binding="{Binding DataContext.SearchFilterText, RelativeSource={RelativeSource AncestorType=Window}}"
                                 Value="" />
                         </MultiDataTrigger.Conditions>
-                        <Setter Property="Opacity" Value="0.01" />
+                        <Setter Property="Opacity" Value="0.5" />
                     </MultiDataTrigger>
                     <DataTrigger Binding="{Binding ShowSeparatorAfter}" Value="True">
                         <Setter Property="BorderBrush" Value="Green" />
