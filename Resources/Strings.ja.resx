@@ -210,8 +210,8 @@
     <data name="Error_LoadingSnapshot" xml:space="preserve">
     <value>スナップショットの読み込み中にエラーが発生しました</value>
   </data>
-  <data name="WindowOpacity" xml:space="preserve">
+    <data name="WindowOpacity" xml:space="preserve">
     <value>背景の不透明度</value> </data>
-  <data name="FontOpacity" xml:space="preserve">
+    <data name="FontOpacity" xml:space="preserve">
     <value>フォントの不透明度</value> </data>
 </root>

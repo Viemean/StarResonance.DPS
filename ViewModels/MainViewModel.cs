@@ -140,6 +140,7 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
     private double _windowTop = 100;
 
     private double _windowWidth = 700;
+    private readonly PlayerViewModelPool _playerViewModelPool;
 
 
     public MainViewModel(ApiService apiService, LocalizationService localizationService)
@@ -192,6 +193,8 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
 
 
         Localization.PropertyChanged += _onLocalizationPropertyChanged;
+        // 初始化 PlayerViewModel 对象池
+        _playerViewModelPool = new PlayerViewModelPool(() => new PlayerViewModel(0, Localization, this));
         BindingOperations.EnableCollectionSynchronization(Players, _dataLock); //启用线程安全的集合绑定 
 
         _apiService.DataReceived += OnDataReceived;
@@ -1307,6 +1310,10 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
             foreach (var key in removedKeys)
             {
                 if (!_playerCache.TryGetValue(key, out var playerToRemove)) continue;
+
+                // **优化点**: 归还到对象池而不是销毁
+                _playerViewModelPool.Return(playerToRemove);
+
                 Players.Remove(playerToRemove);
                 _playerCache.Remove(key);
                 _playerEntryTimes.Remove(key);
@@ -1321,7 +1328,12 @@ public class MainViewModel : ObservableObject, IAsyncDisposable, INotificationSe
             if (!_playerCache.TryGetValue(key, out var playerVm))
             {
                 listStructureChanged = true;
-                playerVm = new PlayerViewModel(uid, Localization, this);
+
+                // **优化点**: 从对象池获取实例
+                playerVm = _playerViewModelPool.Get();
+                // 注意：因为我们复用了对象，所以需要用新的UID来初始化它
+                playerVm.Uid = uid;
+
                 _playerCache.Add(key, playerVm);
                 Players.Add(playerVm);
                 _playerEntryTimes.Add(key, DateTime.UtcNow);

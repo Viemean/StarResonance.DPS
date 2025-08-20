@@ -1,7 +1,7 @@
 ﻿using System.IO;
 using System.Text;
-using System.Text.Json;
 using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Windows.Input;
 using Microsoft.Win32;
 using StarResonance.DPS.Models;
@@ -12,7 +12,7 @@ namespace StarResonance.DPS.ViewModels;
 public class SnapshotViewModel : ObservableObject
 {
     // 缓存并重用 JsonSerializerOptions 实例以优化性能
-    private static readonly JsonSerializerOptions SnapshotSerializerOptions = new() 
+    private static readonly JsonSerializerOptions SnapshotSerializerOptions = new()
     {
         WriteIndented = true,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
@@ -22,19 +22,8 @@ public class SnapshotViewModel : ObservableObject
     private readonly INotificationService _notificationService;
 
     private bool _isInSnapshotMode;
-    public bool IsInSnapshotMode { get => _isInSnapshotMode; set => SetProperty(ref _isInSnapshotMode, value); }
 
     private string _loadedSnapshotFileName = "";
-    public string LoadedSnapshotFileName { get => _loadedSnapshotFileName; set => SetProperty(ref _loadedSnapshotFileName, value); }
-    
-    public ICommand SaveSnapshotCommand { get; }
-    public ICommand LoadSnapshotCommand { get; }
-    public ICommand ExitSnapshotModeCommand { get; }
-
-    // 用于与 MainViewModel 通信的事件
-    public event Func<Task<SnapshotData?>>? RequestDataForSave;
-    public event Action<SnapshotData>? SnapshotLoaded;
-    public event Action? ExitedSnapshotMode;
 
     public SnapshotViewModel(INotificationService notificationService)
     {
@@ -43,6 +32,27 @@ public class SnapshotViewModel : ObservableObject
         LoadSnapshotCommand = new AsyncRelayCommand(_ => LoadSnapshotAsync());
         ExitSnapshotModeCommand = new RelayCommand(_ => ExitSnapshotMode());
     }
+
+    public bool IsInSnapshotMode
+    {
+        get => _isInSnapshotMode;
+        set => SetProperty(ref _isInSnapshotMode, value);
+    }
+
+    public string LoadedSnapshotFileName
+    {
+        get => _loadedSnapshotFileName;
+        set => SetProperty(ref _loadedSnapshotFileName, value);
+    }
+
+    public ICommand SaveSnapshotCommand { get; }
+    public ICommand LoadSnapshotCommand { get; }
+    public ICommand ExitSnapshotModeCommand { get; }
+
+    // 用于与 MainViewModel 通信的事件
+    public event Func<Task<SnapshotData?>>? RequestDataForSave;
+    public event Action<SnapshotData>? SnapshotLoaded;
+    public event Action? ExitedSnapshotMode;
 
     private async Task SaveSnapshotAsync()
     {
@@ -95,7 +105,7 @@ public class SnapshotViewModel : ObservableObject
             var fileNameToShow = Path.GetFileName(openFileDialog.FileName);
             if (fileNameToShow.StartsWith("StarResonance.DPS-"))
                 fileNameToShow = fileNameToShow["StarResonance.DPS-".Length..];
-            
+
             LoadedSnapshotFileName = fileNameToShow;
             IsInSnapshotMode = true;
             _notificationService.ShowNotification("快照加载成功");

@@ -16,13 +16,14 @@ public class AppState
     public string? CultureName { get; init; }
     public bool PauseOnExit { get; init; } = true;
     public bool PauseOnSnapshot { get; init; } = true;
-    
+
     //用于保存排序规则
     public string? SortColumn { get; init; }
     public ListSortDirection SortDirection { get; init; }
-    
+
     /// 主窗口的位置和大小
     public double WindowTop { get; init; }
+
     public double WindowLeft { get; init; }
     public double WindowHeight { get; init; }
     public double WindowWidth { get; init; }

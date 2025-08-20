@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
@@ -28,8 +28,7 @@ internal struct Point
 }
 
 /// <summary>
-///     使用 P/Invoke 实现系统托盘图标功能的服务。
-///     这个类是 partial，因为它包含了由 LibraryImport 源生成器实现的方法。
+///     实现系统托盘图标功能的服务。
 /// </summary>
 public partial class TrayIconService(Window window, MainViewModel viewModel) : IDisposable
 {
@@ -50,7 +49,8 @@ public partial class TrayIconService(Window window, MainViewModel viewModel) : I
     public void Initialize()
     {
         var windowInteropHelper = new WindowInteropHelper(window);
-        _hwndSource = HwndSource.FromHwnd(windowInteropHelper.EnsureHandle());
+        var hwnd = windowInteropHelper.EnsureHandle();
+        _hwndSource = HwndSource.FromHwnd(hwnd);
         _hwndSource?.AddHook(WndProc);
 
         _notifyIconData = new Notifyicondata
@@ -63,11 +63,20 @@ public partial class TrayIconService(Window window, MainViewModel viewModel) : I
             szTip = viewModel.Localization["Tray_Tooltip"] ?? "Star Resonance DPS (Double-click to show)"
         };
 
-        var iconUri = new Uri("pack://application:,,,/Assets/icon.ico", UriKind.RelativeOrAbsolute);
-        using var stream = Application.GetResourceStream(iconUri)?.Stream;
-        if (stream == null) return;
-        using var icon = new Icon(stream);
-        _notifyIconData.hIcon = icon.Handle;
+        //直接向窗口请求它已经加载好的图标句柄
+        var hIcon = SendMessage(hwnd, WmGeticon, IconSmall, 0);
+        if (hIcon == IntPtr.Zero)
+            // 如果上面的方法失败，使用备用方法从窗口类获取
+            hIcon = GetClassLongPtr(hwnd, GclpHicon);
+
+        // 如果两种方法都失败了，才加载系统默认图标
+        if (hIcon == IntPtr.Zero)
+        {
+            Debug.WriteLine("Failed to get icon from window. Falling back to system default icon.");
+            hIcon = LoadIcon(IntPtr.Zero, IdiApplication);
+        }
+
+        _notifyIconData.hIcon = hIcon;
         AddIcon();
     }
 
@@ -83,6 +92,7 @@ public partial class TrayIconService(Window window, MainViewModel viewModel) : I
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        // ... (此部分代码无变化) ...
         switch (msg)
         {
             case WmTrayIcon:
@@ -143,24 +153,30 @@ public partial class TrayIconService(Window window, MainViewModel viewModel) : I
     {
         if (window.IsVisible)
         {
-            // 隐藏窗口
             window.Hide();
         }
         else
         {
-            // 显示窗口并激活
             window.Show();
             window.WindowState = WindowState.Normal;
             window.Activate();
         }
     }
+
     #region P/Invoke Definitions
 
-    // 保留 DllImport 用于有问题的方法
     [DllImport("shell32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool Shell_NotifyIcon(uint dwMessage, ref Notifyicondata lpData);
 
+    [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, int wParam, int lParam);
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    private static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr lpIconName);
+
+    [DllImport("user32.dll", EntryPoint = "GetClassLongPtrW", SetLastError = true)]
+    private static extern IntPtr GetClassLongPtr(IntPtr hWnd, int nIndex);
 
     [LibraryImport("user32.dll", SetLastError = true)]
     private static partial IntPtr CreatePopupMenu();
@@ -195,6 +211,11 @@ public partial class TrayIconService(Window window, MainViewModel viewModel) : I
     private const uint MfString = 0x00000000;
     private const uint MfSeparator = 0x00000800;
     private const uint TpmRightalign = 0x0008;
+
+    private const int IdiApplication = 32512;
+    private const uint WmGeticon = 0x007F;
+    private const int IconSmall = 0;
+    private const int GclpHicon = -14;
 
     #endregion
 }

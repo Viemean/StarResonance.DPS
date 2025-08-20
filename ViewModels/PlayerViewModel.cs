@@ -1,8 +1,8 @@
 ﻿using System.Collections.ObjectModel;
 using System.Text;
 using System.Windows;
-using System.Windows.Media;
 using System.Windows.Input;
+using System.Windows.Media;
 using StarResonance.DPS.Models;
 using StarResonance.DPS.Services;
 
@@ -16,91 +16,60 @@ public class PlayerViewModel : ObservableObject
     // --- 服务字段 ---
     private readonly LocalizationService _localizationService;
     private readonly INotificationService _notificationService;
-    
+
+    // --- 手动实现的属性 ---
+    private string? _accurateCritDamageText;
+
+    private string? _accurateCritHealingText;
+
     // --- 缓存字段 ---
     private string? _cachedCopyableString;
     private string? _cachedToolTipText;
-    
-    // --- 手动实现的属性 ---
-    private string? _accurateCritDamageText;
-    public string? AccurateCritDamageText { get => _accurateCritDamageText; set => SetProperty(ref _accurateCritDamageText, value); }
-    
-    private string? _accurateCritHealingText;
-    public string? AccurateCritHealingText { get => _accurateCritHealingText; set => SetProperty(ref _accurateCritHealingText, value); }
-    
+
     private string? _damageDisplayPercentage;
-    public string? DamageDisplayPercentage { get => _damageDisplayPercentage; set => SetProperty(ref _damageDisplayPercentage, value); }
 
     private UserData? _data;
 
     private string? _dpsDisplayPercentage;
-    public string? DpsDisplayPercentage { get => _dpsDisplayPercentage;
-        private set => SetProperty(ref _dpsDisplayPercentage, value); }
 
     private string _fightDuration = "0:00";
 
     private int _fightPoint;
-    public int FightPoint { get => _fightPoint; set => SetProperty(ref _fightPoint, value); }
-    
+
     private string? _healingDisplayPercentage;
-    public string? HealingDisplayPercentage { get => _healingDisplayPercentage; set => SetProperty(ref _healingDisplayPercentage, value); }
-    
+
     private string? _hpsDisplayPercentage;
-    public string? HpsDisplayPercentage { get => _hpsDisplayPercentage;
-        private set => SetProperty(ref _hpsDisplayPercentage, value); }
-    
+
     private bool _isExpanded;
-    
+
     private bool _isIdle;
-    public bool IsIdle { get => _isIdle; set => SetProperty(ref _isIdle, value); }
-    
-    private bool _isMatchInFilter = true;
-    public bool IsMatchInFilter { get => _isMatchInFilter; set => SetProperty(ref _isMatchInFilter, value); }
-    
+
     private bool _isLoadingSkills;
-    public bool IsLoadingSkills { get => _isLoadingSkills; set => SetProperty(ref _isLoadingSkills, value); }
-    
+
+    private bool _isMatchInFilter = true;
+
     private string _name = null!;
-    public string Name { get => _name;
-        private set => SetProperty(ref _name, value); }
-    
+
     private Brush _nameColor = Brushes.White;
-    public Brush NameColor { get => _nameColor; set => SetProperty(ref _nameColor, value); }
-    
+
     private string _profession = null!;
-    public string Profession { get => _profession; set => SetProperty(ref _profession, value); }
-    
+
     private int _rank;
-    public int Rank { get => _rank;
-        set => SetProperty(ref _rank, value); }
-    
+
     private bool _showSeparatorAfter;
-    public bool ShowSeparatorAfter { get => _showSeparatorAfter; set => SetProperty(ref _showSeparatorAfter, value); }
 
     private double _takenDamage;
-    public double TakenDamage { get => _takenDamage; set => SetProperty(ref _takenDamage, value); }
 
     private string? _takenDamageDisplayPercentage;
-    public string? TakenDamageDisplayPercentage { get => _takenDamageDisplayPercentage; set => SetProperty(ref _takenDamageDisplayPercentage, value); }
 
     private double _totalDamage;
-    public double TotalDamage { get => _totalDamage; set => SetProperty(ref _totalDamage, value); }
 
     private double _totalDps;
-    public double TotalDps { get => _totalDps; set => SetProperty(ref _totalDps, value); }
 
     private double _totalHealing;
-    public double TotalHealing { get => _totalHealing; set => SetProperty(ref _totalHealing, value); }
 
     private double _totalHps;
-    public double TotalHps { get => _totalHps; set => SetProperty(ref _totalHps, value); }
-    
-    public double DamagePercent { get; set; }
-    public double HealingPercent { get; set; }
-    public int MaxHp { get; private set; }
-    
-    public ICommand CopyDataCommand { get; }
-    
+
     /// <summary>
     ///     表示单个玩家数据及其在UI中状态的视图模型。
     /// </summary>
@@ -112,10 +81,10 @@ public class PlayerViewModel : ObservableObject
         LocalizationService localizationService,
         INotificationService notificationService)
     {
-        this.Uid = uid;
-        this._localizationService = localizationService;
-        this._notificationService = notificationService;
-        
+        Uid = uid;
+        _localizationService = localizationService;
+        _notificationService = notificationService;
+
         CopyDataCommand = new RelayCommand(_ => CopyData());
     }
 
@@ -157,6 +126,138 @@ public class PlayerViewModel : ObservableObject
         _cachedCopyableString = BuildCopyableString();
         if (NameColor.CanFreeze) NameColor.Freeze();
     }
+
+    public string? AccurateCritDamageText
+    {
+        get => _accurateCritDamageText;
+        set => SetProperty(ref _accurateCritDamageText, value);
+    }
+
+    public string? AccurateCritHealingText
+    {
+        get => _accurateCritHealingText;
+        set => SetProperty(ref _accurateCritHealingText, value);
+    }
+
+    public string? DamageDisplayPercentage
+    {
+        get => _damageDisplayPercentage;
+        set => SetProperty(ref _damageDisplayPercentage, value);
+    }
+
+    public string? DpsDisplayPercentage
+    {
+        get => _dpsDisplayPercentage;
+        private set => SetProperty(ref _dpsDisplayPercentage, value);
+    }
+
+    public int FightPoint
+    {
+        get => _fightPoint;
+        set => SetProperty(ref _fightPoint, value);
+    }
+
+    public string? HealingDisplayPercentage
+    {
+        get => _healingDisplayPercentage;
+        set => SetProperty(ref _healingDisplayPercentage, value);
+    }
+
+    public string? HpsDisplayPercentage
+    {
+        get => _hpsDisplayPercentage;
+        private set => SetProperty(ref _hpsDisplayPercentage, value);
+    }
+
+    public bool IsIdle
+    {
+        get => _isIdle;
+        set => SetProperty(ref _isIdle, value);
+    }
+
+    public bool IsMatchInFilter
+    {
+        get => _isMatchInFilter;
+        set => SetProperty(ref _isMatchInFilter, value);
+    }
+
+    public bool IsLoadingSkills
+    {
+        get => _isLoadingSkills;
+        set => SetProperty(ref _isLoadingSkills, value);
+    }
+
+    public string Name
+    {
+        get => _name;
+        private set => SetProperty(ref _name, value);
+    }
+
+    public Brush NameColor
+    {
+        get => _nameColor;
+        private set => SetProperty(ref _nameColor, value);
+    }
+
+    public string Profession
+    {
+        get => _profession;
+        set => SetProperty(ref _profession, value);
+    }
+
+    public int Rank
+    {
+        get => _rank;
+        set => SetProperty(ref _rank, value);
+    }
+
+    public bool ShowSeparatorAfter
+    {
+        get => _showSeparatorAfter;
+        set => SetProperty(ref _showSeparatorAfter, value);
+    }
+
+    public double TakenDamage
+    {
+        get => _takenDamage;
+        set => SetProperty(ref _takenDamage, value);
+    }
+
+    public string? TakenDamageDisplayPercentage
+    {
+        get => _takenDamageDisplayPercentage;
+        set => SetProperty(ref _takenDamageDisplayPercentage, value);
+    }
+
+    public double TotalDamage
+    {
+        get => _totalDamage;
+        set => SetProperty(ref _totalDamage, value);
+    }
+
+    public double TotalDps
+    {
+        get => _totalDps;
+        set => SetProperty(ref _totalDps, value);
+    }
+
+    public double TotalHealing
+    {
+        get => _totalHealing;
+        set => SetProperty(ref _totalHealing, value);
+    }
+
+    public double TotalHps
+    {
+        get => _totalHps;
+        set => SetProperty(ref _totalHps, value);
+    }
+
+    public double DamagePercent { get; set; }
+    public double HealingPercent { get; set; }
+    private int MaxHp { get; set; }
+
+    public ICommand CopyDataCommand { get; }
 
     /// <summary>
     ///     一个锁标志，防止对同一个玩家同时发起多个数据请求。
@@ -203,7 +304,7 @@ public class PlayerViewModel : ObservableObject
     public DateTime LastActiveTime { get; set; } = DateTime.UtcNow;
     public ObservableCollection<SkillViewModel> Skills { get; } = new();
 
-    public long Uid { get; } 
+    public long Uid { get; set; }
     public string TotalDamageText => TotalDamage > 0 ? MainViewModel.FormatNumber(TotalDamage) : string.Empty;
     public string TotalHealingText => TotalHealing > 0 ? MainViewModel.FormatNumber(TotalHealing) : string.Empty;
     public string TotalDpsText => TotalDps > 0 ? MainViewModel.FormatNumber(TotalDps) : string.Empty;
@@ -218,6 +319,19 @@ public class PlayerViewModel : ObservableObject
 
     //  ToolTipText get访问器
     public string ToolTipText => _cachedToolTipText ?? BuildToolTipText();
+
+    public string DisplayProfession
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(Profession)) return string.Empty;
+            var parts = Profession.Split('-');
+            return parts.Length > 1 ? parts[1] : parts[0];
+        }
+    }
+
+    //  CopyableString get访问器
+    public string CopyableString => _cachedCopyableString ?? BuildCopyableString();
 
     // 构建ToolTipText的私有方法
     private string BuildToolTipText()
@@ -256,19 +370,6 @@ public class PlayerViewModel : ObservableObject
 
         return sb.ToString().TrimEnd();
     }
-
-    public string DisplayProfession
-    {
-        get
-        {
-            if (string.IsNullOrEmpty(Profession)) return string.Empty;
-            var parts = Profession.Split('-');
-            return parts.Length > 1 ? parts[1] : parts[0];
-        }
-    }
-
-    //  CopyableString get访问器
-    public string CopyableString => _cachedCopyableString ?? BuildCopyableString();
 
     // 构建CopyableString的私有方法
     private string BuildCopyableString()
@@ -486,7 +587,7 @@ public class PlayerViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 当语言变更时，使缓存的字符串（如Tooltip和复制文本）失效，以便下次访问时重新生成。
+    ///     当语言变更时，使缓存的字符串（如Tooltip和复制文本）失效，以便下次访问时重新生成。
     /// </summary>
     public void InvalidateLocalizedStrings()
     {
@@ -494,5 +595,50 @@ public class PlayerViewModel : ObservableObject
         _cachedCopyableString = null;
         OnPropertyChanged(nameof(ToolTipText));
         OnPropertyChanged(nameof(CopyableString));
+    }
+
+    /// <summary>
+    /// 重置ViewModel的状态，以便在对象池中被复用。
+    /// </summary>
+    public void Reset()
+    {
+        // 重置所有可变属性为默认值
+        _cachedCopyableString = null;
+        _cachedToolTipText = null;
+        AccurateCritDamageText = null;
+        AccurateCritHealingText = null;
+        DamageDisplayPercentage = null;
+        DpsDisplayPercentage = null;
+        HealingDisplayPercentage = null;
+        HpsDisplayPercentage = null;
+        TakenDamageDisplayPercentage = null;
+
+        UserData = null;
+        _data = null;
+        RawSkillData = null;
+
+        _fightDuration = "0:00";
+        FightPoint = 0;
+        IsExpanded = false;
+        IsIdle = false;
+        IsMatchInFilter = true;
+        IsLoadingSkills = false;
+        Name = string.Empty;
+        NameColor = Brushes.White;
+        Profession = string.Empty;
+        Rank = 0;
+        ShowSeparatorAfter = false;
+        TakenDamage = 0;
+        TotalDamage = 0;
+        TotalDps = 0;
+        TotalHealing = 0;
+        TotalHps = 0;
+        DamagePercent = 0;
+        HealingPercent = 0;
+        MaxHp = 0;
+
+        Skills.Clear();
+
+        LastActiveTime = DateTime.UtcNow;
     }
 }
