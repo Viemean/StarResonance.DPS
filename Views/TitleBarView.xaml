@@ -42,7 +42,9 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0" Background="#22FFFFFF" CornerRadius="4" Height="24"
+                    <Border Grid.Column="0" Background="#22FFFFFF" CornerRadius="6
+                    
+                    " Height="26"
                             VerticalAlignment="Center">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -136,7 +138,7 @@
                    DataContext="{Binding DataContext, ElementName=RootGrid}"
                    Placement="Bottom" StaysOpen="False" AllowsTransparency="True"
                    IsOpen="{Binding IsCountdownOptionsPopupOpen, Mode=TwoWay}">
-                <Border CornerRadius="5"
+                <Border CornerRadius="6"
                         Background="{Binding WindowOpacity, Converter={StaticResource OpacityToBrushConverter}, ConverterParameter='#222222'}"
                         Padding="5" Margin="5"
                         Opacity="{Binding FontOpacity}"  TextBlock.FontSize="{Binding FontSize}">
@@ -158,7 +160,7 @@
                    DataContext="{Binding DataContext, ElementName=RootGrid}"
                    IsOpen="{Binding IsCustomCountdownPopupOpen, Mode=TwoWay}"
                    Opened="CustomCountdownPopup_Opened">
-                <Border CornerRadius="5"
+                <Border CornerRadius="6"
                         Background="{Binding WindowOpacity, Converter={StaticResource OpacityToBrushConverter}, ConverterParameter='#222222'}"
                         Padding="15"
                         Opacity="{Binding WindowOpacity}" TextBlock.FontSize="{Binding FontSize}">

@@ -68,7 +68,7 @@
 
         <Border x:Name="MainBorder"
                 Background="{Binding WindowOpacity, Converter={StaticResource OpacityToBrushConverter}, ConverterParameter='#222222'}"
-                CornerRadius="8" BorderBrush="Transparent" BorderThickness="1" />
+                CornerRadius="6" BorderBrush="Transparent" BorderThickness="1" />
 
         <Grid Opacity="{Binding FontOpacity}">
             <Grid>
@@ -159,7 +159,7 @@
                                         Visibility="{Binding SettingsVisibility}" />
                 </Grid>
 
-                <Border Grid.Row="0" Grid.RowSpan="2" Background="#A0000000" CornerRadius="5" Padding="15,10"
+                <Border Grid.Row="0" Grid.RowSpan="2" Background="#A0000000" CornerRadius="6" Padding="15,10"
                         HorizontalAlignment="Center" VerticalAlignment="Center"
                         Visibility="{Binding NotificationVisibility}">
                     <TextBlock Text="{Binding NotificationText}" Foreground="White" FontSize="16" />
