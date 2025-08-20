@@ -8,9 +8,9 @@
         <UseWPF>true</UseWPF>
         <PublishSingleFile>true</PublishSingleFile>
         <SelfContained>false</SelfContained>
-<!--        <PublishReadyToRun>true</PublishReadyToRun>-->
+        <PublishReadyToRun>true</PublishReadyToRun>
         <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-        <Version>1.1.1</Version>
+        <Version>1.1.2</Version>
         <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
 
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
